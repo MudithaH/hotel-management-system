@@ -251,29 +251,29 @@ async function seedDatabase() {
     // 11. Insert Sample Bills
     console.log('💰 Seeding bills...');
     const bills = [
-      [1, 1, 269.97, 41.98, 0.00, 31.20, 343.15, '2024-03-18 10:00:00', 'paid'], // Booking 1: 3 nights * 89.99 + services
-      [2, 2, 519.96, 125.98, 0.00, 64.59, 709.53, '2024-03-17 09:00:00', 'paid'], // Booking 2: 4 nights * 129.99 + services
-      [3, 3, 499.98, 25.99, 0.00, 52.60, 578.57, '2024-03-19 11:00:00', 'pending']   // Booking 3: 2 nights * 249.99 + services
+      [1, 1, 269.97, 41.98, 0.00, 31.20, 343.15], // Booking 1: 3 nights * 89.99 + services
+      [2, 2, 519.96, 125.98, 0.00, 64.59, 709.53], // Booking 2: 4 nights * 129.99 + services
+      [3, 3, 499.98, 25.99, 0.00, 52.60, 578.57]   // Booking 3: 2 nights * 249.99 + services
     ];
     
     for (const bill of bills) {
       await connection.execute(
-        'INSERT INTO bill (BillID, BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount, BillDate, PaymentStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO bill (BillID, BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount) VALUES (?, ?, ?, ?, ?, ?, ?)',
         bill
       );
     }
 
-    // 12. Insert Sample Payments
+    // 12. Insert Sample Payments (using BookingID since table has that structure)
     console.log('💳 Seeding payments...');
     const payments = [
-      [1, 1, 343.15, 'credit_card', '2024-03-18'],
-      [2, 2, 709.53, 'cash', '2024-03-17'],
-      [3, 3, 578.57, 'credit_card', '2024-03-19']
+      [1, 1, 1, 343.15, 'credit_card', '2024-03-18 10:30:00', 'completed'],
+      [2, 2, 4, 709.53, 'cash', '2024-03-17 09:15:00', 'completed'],
+      [3, 3, 7, 578.57, 'credit_card', '2024-03-19 11:45:00', 'pending']
     ];
     
     for (const payment of payments) {
       await connection.execute(
-        'INSERT INTO payment (PaymentID, BillID, Amount, PaymentMethod, PaymentDate) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO payment (PaymentID, BookingID, StaffID, Amount, PaymentMethod, PaymentDate, PaymentStatus) VALUES (?, ?, ?, ?, ?, ?, ?)',
         payment
       );
     }

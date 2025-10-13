@@ -396,8 +396,8 @@ const generateBill = async (req, res) => {
     } else {
       // Create new bill
       const insertQuery = `
-        INSERT INTO bill (BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount, BillDate, PaymentStatus)
-        VALUES (?, ?, ?, ?, ?, ?, NOW(), 'pending')
+        INSERT INTO bill (BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount)
+        VALUES (?, ?, ?, ?, ?, ?)
       `;
       billResult = await insertRecord(insertQuery, [bookingId, roomCharges, serviceCharges, discount, tax, totalAmount]);
     }
@@ -437,16 +437,23 @@ const getBills = async (req, res) => {
 
     const query = `
       SELECT b.BillID, b.BookingID, b.RoomCharges, b.ServiceCharges, b.Discount, 
-             b.Tax, b.TotalAmount, b.BillDate, b.PaymentStatus,
-             g.Name as GuestName, g.Email as GuestEmail
+             b.Tax, b.TotalAmount, bk.CheckOutDate as BillDate,
+             g.Name as GuestName, g.Email as GuestEmail,
+             COALESCE(SUM(p.Amount), 0) as PaidAmount,
+             CASE 
+               WHEN COALESCE(SUM(p.Amount), 0) >= b.TotalAmount THEN 'paid'
+               WHEN COALESCE(SUM(p.Amount), 0) > 0 THEN 'partially_paid'
+               ELSE 'pending'
+             END as PaymentStatus
       FROM bill b
       JOIN booking bk ON b.BookingID = bk.BookingID
       JOIN guest g ON bk.GuestID = g.GuestID
       JOIN bookingRooms br ON bk.BookingID = br.BookingID
       JOIN room r ON br.RoomID = r.RoomID
+      LEFT JOIN payment p ON b.BookingID = p.BookingID AND p.PaymentStatus = 'completed'
       WHERE r.BranchID = ?
       GROUP BY b.BillID
-      ORDER BY b.BillDate DESC
+      ORDER BY bk.CheckOutDate DESC
     `;
 
     const result = await findMany(query, [branchId]);
@@ -467,13 +474,14 @@ const getBills = async (req, res) => {
 const processPayment = async (req, res) => {
   try {
     const { billId, paymentMethod, amount, paymentDate } = req.body;
+    const staffId = req.user.StaffID;
 
     // Input validation
     if (!billId || !paymentMethod || !amount) {
       return res.status(400).json(formatResponse(false, 'Bill ID, payment method, and amount are required', null, 400));
     }
 
-    // Get bill details
+    // Get bill details and booking ID
     const billQuery = 'SELECT * FROM bill WHERE BillID = ?';
     const billResult = await findOne(billQuery, [billId]);
 
@@ -482,29 +490,38 @@ const processPayment = async (req, res) => {
     }
 
     const bill = billResult.data;
+    const bookingId = bill.BookingID;
 
     // Validate payment amount
     if (amount > bill.TotalAmount) {
       return res.status(400).json(formatResponse(false, 'Payment amount cannot exceed bill total', null, 400));
     }
 
-    // Insert payment record
+    // Insert payment record (using BookingID as per current table structure)
     const paymentInsertQuery = `
-      INSERT INTO payment (BillID, PaymentMethod, Amount, PaymentDate)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO payment (BookingID, StaffID, PaymentMethod, Amount, PaymentDate, PaymentStatus)
+      VALUES (?, ?, ?, ?, ?, 'completed')
     `;
 
-    const finalPaymentDate = paymentDate || new Date().toISOString().split('T')[0];
-    const paymentResult = await insertRecord(paymentInsertQuery, [billId, paymentMethod, amount, finalPaymentDate]);
+    const finalPaymentDate = paymentDate || new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().split(' ')[0];
+    const paymentResult = await insertRecord(paymentInsertQuery, [bookingId, staffId, paymentMethod, amount, finalPaymentDate]);
 
     if (!paymentResult.success) {
       return res.status(400).json(formatResponse(false, paymentResult.error, null, 400));
     }
 
-    // Update bill payment status if fully paid
-    if (amount >= bill.TotalAmount) {
-      const updateBillQuery = 'UPDATE bill SET PaymentStatus = ? WHERE BillID = ?';
-      await updateRecord(updateBillQuery, ['paid', billId]);
+    // Calculate total payments to determine status
+    const paymentsQuery = 'SELECT SUM(Amount) as totalPaid FROM payment WHERE BookingID = ? AND PaymentStatus = "completed"';
+    const paymentsResult = await findOne(paymentsQuery, [bookingId]);
+    const totalPaid = paymentsResult.data?.totalPaid || 0;
+    
+    let billStatus;
+    if (totalPaid >= bill.TotalAmount) {
+      billStatus = 'paid';
+    } else if (totalPaid > 0) {
+      billStatus = 'partially_paid';
+    } else {
+      billStatus = 'pending';
     }
 
     // Log audit trail
@@ -512,7 +529,9 @@ const processPayment = async (req, res) => {
 
     res.status(201).json(formatResponse(true, 'Payment processed successfully', { 
       paymentId: paymentResult.insertId,
-      billStatus: amount >= bill.TotalAmount ? 'paid' : 'partially_paid'
+      billStatus: billStatus,
+      totalPaid: totalPaid,
+      remainingAmount: Math.max(0, bill.TotalAmount - totalPaid)
     }));
 
   } catch (error) {
