@@ -88,11 +88,7 @@ const getPagination = (page, size) => {
   return { limit, offset };
 };
 
-// Calculate total room charges based on room type and days
-const calculateRoomCharges = (dailyRate, checkInDate, checkOutDate) => {
-  const days = calculateDays(checkInDate, checkOutDate);
-  return days * dailyRate;
-};
+
 
 // Generate bill total with tax calculation
 const calculateBillTotal = (roomCharges, serviceCharges, discount = 0, taxRate = 0.1) => {
@@ -113,6 +109,6 @@ module.exports = {
   logAudit,
   formatResponse,
   getPagination,
-  calculateRoomCharges,
+
   calculateBillTotal
 };

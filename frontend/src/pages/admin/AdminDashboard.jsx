@@ -14,7 +14,8 @@ import {
   TrendingUp,
   Building2,
   UserCheck,
-  Home
+  Home,
+  BarChart3
 } from 'lucide-react';
 import Layout from '../../components/Layout';
 import toast from 'react-hot-toast';
@@ -217,6 +218,90 @@ const AdminDashboard = () => {
                 <span className="text-sm font-medium text-gray-900">{stats?.totalRooms || 0}</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Management Reports */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900">Management Reports</h3>
+            <BarChart3 className="h-5 w-5 text-blue-600" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <a
+              href="/admin/reports/occupancy"
+              className="group block p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 hover:border-blue-300 transition-all duration-200"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-100 group-hover:bg-blue-200 p-2 rounded-lg">
+                  <BedDouble className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Room Occupancy</p>
+                  <p className="text-xs text-blue-700">Occupancy rates & trends</p>
+                </div>
+              </div>
+            </a>
+
+            <a
+              href="/admin/reports/billing"
+              className="group block p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 hover:border-green-300 transition-all duration-200"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="bg-green-100 group-hover:bg-green-200 p-2 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-green-900">Billing Summary</p>
+                  <p className="text-xs text-green-700">Guest bills & payments</p>
+                </div>
+              </div>
+            </a>
+
+            <a
+              href="/admin/reports/services"
+              className="group block p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 hover:border-purple-300 transition-all duration-200"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="bg-purple-100 group-hover:bg-purple-200 p-2 rounded-lg">
+                  <Users className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-purple-900">Service Usage</p>
+                  <p className="text-xs text-purple-700">Service breakdown</p>
+                </div>
+              </div>
+            </a>
+
+            <a
+              href="/admin/reports/revenue"
+              className="group block p-4 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200 hover:border-orange-300 transition-all duration-200"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="bg-orange-100 group-hover:bg-orange-200 p-2 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-orange-900">Monthly Revenue</p>
+                  <p className="text-xs text-orange-700">Revenue trends</p>
+                </div>
+              </div>
+            </a>
+
+            <a
+              href="/admin/reports/top-services"
+              className="group block p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg border border-yellow-200 hover:border-yellow-300 transition-all duration-200"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="bg-yellow-100 group-hover:bg-yellow-200 p-2 rounded-lg">
+                  <UserCheck className="h-5 w-5 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-yellow-900">Top Services</p>
+                  <p className="text-xs text-yellow-700">Popular services</p>
+                </div>
+              </div>
+            </a>
           </div>
         </div>
 

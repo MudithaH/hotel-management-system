@@ -15,7 +15,12 @@ import {
   Receipt,
   Settings,
   ClipboardList,
-  LogIn
+  LogIn,
+  BarChart3,
+  DollarSign,
+  TrendingUp,
+  Trophy,
+  CreditCard
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -41,6 +46,36 @@ const Sidebar = () => {
       icon: BedDouble,
       label: 'Room Management',
       description: 'Manage rooms and types'
+    },
+    {
+      path: '/admin/reports/occupancy',
+      icon: BarChart3,
+      label: 'Room Occupancy',
+      description: 'Occupancy reports'
+    },
+    {
+      path: '/admin/reports/billing',
+      icon: CreditCard,
+      label: 'Billing Summary',
+      description: 'Guest billing status'
+    },
+    {
+      path: '/admin/reports/services',
+      icon: ClipboardList,
+      label: 'Service Usage',
+      description: 'Service breakdown'
+    },
+    {
+      path: '/admin/reports/revenue',
+      icon: TrendingUp,
+      label: 'Monthly Revenue',
+      description: 'Revenue trends'
+    },
+    {
+      path: '/admin/reports/top-services',
+      icon: Trophy,
+      label: 'Top Services',
+      description: 'Popular services'
     }
   ];
 

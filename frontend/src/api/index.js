@@ -72,7 +72,14 @@ export const adminAPI = {
   deleteStaff: (id) => api.delete(`/admin/staff/${id}`),
   getRooms: () => api.get('/admin/rooms'),
   getRoomTypes: () => api.get('/admin/room-types'),
-  getDesignations: () => api.get('/admin/designations')
+  getDesignations: () => api.get('/admin/designations'),
+  getBranches: () => api.get('/admin/branches'),
+  // Report API calls
+  getRoomOccupancyReport: (params) => api.get('/admin/reports/room-occupancy', { params }),
+  getGuestBillingSummary: (params) => api.get('/admin/reports/guest-billing', { params }),
+  getServiceUsageReport: (params) => api.get('/admin/reports/service-usage', { params }),
+  getMonthlyRevenueReport: (params) => api.get('/admin/reports/monthly-revenue', { params }),
+  getTopServicesReport: (params) => api.get('/admin/reports/top-services', { params })
 };
 
 // Staff API calls

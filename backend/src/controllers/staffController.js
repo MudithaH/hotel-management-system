@@ -11,7 +11,7 @@ const {
   isValidPhone, 
   datesOverlap, 
   calculateDays,
-  calculateRoomCharges,
+
   calculateBillTotal 
 } = require('../utils/helpers');
 
@@ -466,15 +466,7 @@ const generateBill = async (req, res) => {
     const tax = subtotal * taxRateValue;
     const totalAmount = subtotal + tax;
 
-    console.log('Bill calculation debug:', {
-      roomCharges: roomChargesNum,
-      serviceCharges: serviceChargesNum,
-      discountAmount,
-      taxRateValue,
-      subtotal,
-      tax,
-      totalAmount
-    });
+
 
     // Check if bill already exists
     const existingBillQuery = 'SELECT BillID FROM bill WHERE BookingID = ?';

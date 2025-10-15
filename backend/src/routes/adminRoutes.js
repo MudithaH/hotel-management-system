@@ -13,7 +13,14 @@ const {
   deleteStaff,
   getRooms,
   getRoomTypes,
-  getDesignations
+  getDesignations,
+  // Report endpoints
+  getRoomOccupancyReport,
+  getGuestBillingSummary,
+  getServiceUsageReport,
+  getMonthlyRevenueReport,
+  getTopServicesReport,
+  getBranches
 } = require('../controllers/adminController');
 const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
 
@@ -63,5 +70,36 @@ router.get('/room-types', getRoomTypes);
 // @desc    Get all designations
 // @access  Private (Admin only)
 router.get('/designations', getDesignations);
+
+// Report routes
+// @route   GET /api/admin/reports/room-occupancy
+// @desc    Get room occupancy report for selected date range
+// @access  Private (Admin only)
+router.get('/reports/room-occupancy', getRoomOccupancyReport);
+
+// @route   GET /api/admin/reports/guest-billing
+// @desc    Get guest billing summary including unpaid balances
+// @access  Private (Admin only)
+router.get('/reports/guest-billing', getGuestBillingSummary);
+
+// @route   GET /api/admin/reports/service-usage
+// @desc    Get service usage breakdown per room and service type
+// @access  Private (Admin only)
+router.get('/reports/service-usage', getServiceUsageReport);
+
+// @route   GET /api/admin/reports/monthly-revenue
+// @desc    Get monthly revenue per branch from room charges and services
+// @access  Private (Admin only)
+router.get('/reports/monthly-revenue', getMonthlyRevenueReport);
+
+// @route   GET /api/admin/reports/top-services
+// @desc    Get top-used services and customer preference trends
+// @access  Private (Admin only)
+router.get('/reports/top-services', getTopServicesReport);
+
+// @route   GET /api/admin/branches
+// @desc    Get all branches for report filtering
+// @access  Private (Admin only)
+router.get('/branches', getBranches);
 
 module.exports = router;

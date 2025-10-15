@@ -14,6 +14,12 @@ import Login from './pages/auth/Login';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import StaffManagement from './pages/admin/StaffManagement';
 import RoomManagement from './pages/admin/RoomManagement';
+// Report pages
+import OccupancyReport from './pages/admin/OccupancyReport';
+import BillingSummary from './pages/admin/BillingSummary';
+import ServiceUsageReport from './pages/admin/ServiceUsageReport';
+import MonthlyRevenue from './pages/admin/MonthlyRevenue';
+import TopServices from './pages/admin/TopServices';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import GuestManagement from './pages/staff/GuestManagement';
 import BookingManagement from './pages/staff/BookingManagement';
@@ -101,6 +107,48 @@ function App() {
               element={
                 <ProtectedRoute adminOnly>
                   <RoomManagement />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin Report routes */}
+            <Route
+              path="/admin/reports/occupancy"
+              element={
+                <ProtectedRoute adminOnly>
+                  <OccupancyReport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports/billing"
+              element={
+                <ProtectedRoute adminOnly>
+                  <BillingSummary />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports/services"
+              element={
+                <ProtectedRoute adminOnly>
+                  <ServiceUsageReport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports/revenue"
+              element={
+                <ProtectedRoute adminOnly>
+                  <MonthlyRevenue />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports/top-services"
+              element={
+                <ProtectedRoute adminOnly>
+                  <TopServices />
                 </ProtectedRoute>
               }
             />
