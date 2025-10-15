@@ -56,7 +56,7 @@ const getAvailableRooms = async (req, res) => {
         FROM booking b
         JOIN bookingRooms br ON b.BookingID = br.BookingID
         WHERE br.RoomID = ? 
-        AND b.BookingStatus IN ('confirmed', 'checked-in')
+        AND b.BookingStatus IN ('booked', 'checked-in')
         AND (
           (b.CheckInDate <= ? AND b.CheckOutDate > ?) OR
           (b.CheckInDate < ? AND b.CheckOutDate >= ?) OR
@@ -169,7 +169,7 @@ const createBooking = async (req, res) => {
         FROM booking b
         JOIN bookingRooms br ON b.BookingID = br.BookingID
         WHERE br.RoomID = ? 
-        AND b.BookingStatus IN ('confirmed', 'checked-in')
+        AND b.BookingStatus IN ('booked', 'checked-in')
         AND (
           (b.CheckInDate <= ? AND b.CheckOutDate > ?) OR
           (b.CheckInDate < ? AND b.CheckOutDate >= ?) OR
@@ -192,7 +192,7 @@ const createBooking = async (req, res) => {
     // Create booking
     const bookingQuery = `
       INSERT INTO booking (GuestID, CheckInDate, CheckOutDate, BookingStatus)
-      VALUES (?, ?, ?, 'confirmed')
+      VALUES (?, ?, ?, 'booked')
     `;
     
     const bookingResult = await insertRecord(bookingQuery, [guestId, checkInDate, checkOutDate]);
@@ -294,6 +294,18 @@ const addServiceUsage = async (req, res) => {
       return res.status(400).json(formatResponse(false, 'Booking ID, service ID, and quantity are required', null, 400));
     }
 
+    // Validate booking exists and is checked-in
+    const bookingQuery = 'SELECT BookingStatus FROM booking WHERE BookingID = ?';
+    const bookingResult = await findOne(bookingQuery, [bookingId]);
+
+    if (!bookingResult.success || !bookingResult.data) {
+      return res.status(404).json(formatResponse(false, 'Booking not found', null, 404));
+    }
+
+    if (bookingResult.data.BookingStatus !== 'checked-in') {
+      return res.status(400).json(formatResponse(false, 'Services can only be added to checked-in bookings', null, 400));
+    }
+
     // Get service details for price
     const serviceQuery = 'SELECT Price FROM serviceCatalogue WHERE ServiceID = ?';
     const serviceResult = await findOne(serviceQuery, [serviceId]);
@@ -305,12 +317,16 @@ const addServiceUsage = async (req, res) => {
     const priceAtUsage = serviceResult.data.Price;
     const finalUsageDate = usageDate || new Date().toISOString().split('T')[0];
 
+    // Coerce numeric values
+    const qty = parseInt(quantity) || 0;
+    const priceNum = parseFloat(serviceResult.data.Price) || 0;
+
     const query = `
       INSERT INTO serviceUsage (BookingID, ServiceID, UsageDate, Quantity, PriceAtUsage)
       VALUES (?, ?, ?, ?, ?)
     `;
 
-    const result = await insertRecord(query, [bookingId, serviceId, finalUsageDate, quantity, priceAtUsage]);
+    const result = await insertRecord(query, [bookingId, serviceId, finalUsageDate, qty, priceNum]);
 
     if (!result.success) {
       return res.status(400).json(formatResponse(false, result.error, null, 400));
@@ -319,11 +335,69 @@ const addServiceUsage = async (req, res) => {
     // Log audit trail
     await logAudit(req.user.StaffID, 'serviceUsage', `CREATE - UsageID: ${result.insertId}`);
 
+    // If a bill already exists for this booking, update its ServiceCharges and TotalAmount
+    try {
+      const existingBillQuery = 'SELECT BillID, RoomCharges, Discount, Tax FROM bill WHERE BookingID = ?';
+      const existingBill = await findOne(existingBillQuery, [bookingId]);
+      if (existingBill.success && existingBill.data) {
+        const billRecord = existingBill.data;
+
+        const servicesSumQuery = 'SELECT COALESCE(SUM(Quantity * PriceAtUsage), 0) as totalServiceCharges FROM serviceUsage WHERE BookingID = ?';
+        const servicesSumResult = await findOne(servicesSumQuery, [bookingId]);
+        const totalServiceCharges = parseFloat(servicesSumResult.data?.totalServiceCharges) || 0;
+
+        // Recalculate total amount (keep Tax as stored in bill, adjust ServiceCharges)
+        const roomCharges = parseFloat(billRecord.RoomCharges) || 0;
+        const discount = parseFloat(billRecord.Discount) || 0;
+        const tax = parseFloat(billRecord.Tax) || 0;
+        const newTotal = parseFloat((roomCharges + totalServiceCharges - discount + tax).toFixed(2));
+
+        await updateRecord('UPDATE bill SET ServiceCharges = ?, TotalAmount = ? WHERE BillID = ?', [totalServiceCharges, newTotal, billRecord.BillID]);
+      }
+    } catch (err) {
+      console.error('Failed to update bill after adding service usage:', err);
+    }
+
     res.status(201).json(formatResponse(true, 'Service usage added successfully', { usageId: result.insertId }));
 
   } catch (error) {
     console.error('Add service usage error:', error);
     res.status(500).json(formatResponse(false, 'Failed to add service usage', null, 500));
+  }
+};
+
+// Get service usage details for a booking
+const getServiceUsage = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    const query = `
+      SELECT su.UsageID, su.UsageDate, su.Quantity, su.PriceAtUsage,
+             sc.ServiceName,
+             (su.Quantity * su.PriceAtUsage) as TotalCost
+      FROM serviceUsage su
+      JOIN serviceCatalogue sc ON su.ServiceID = sc.ServiceID
+      WHERE su.BookingID = ?
+      ORDER BY su.UsageDate DESC, su.UsageID DESC
+    `;
+
+    const result = await findMany(query, [bookingId]);
+
+    if (!result.success) {
+      return res.status(400).json(formatResponse(false, result.error, null, 400));
+    }
+
+    const serviceDetails = result.data || [];
+    const totalServiceCost = serviceDetails.reduce((sum, service) => sum + parseFloat(service.TotalCost), 0);
+
+    res.json(formatResponse(true, 'Service usage retrieved successfully', {
+      services: serviceDetails,
+      totalServiceCost: totalServiceCost
+    }));
+
+  } catch (error) {
+    console.error('Get service usage error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve service usage', null, 500));
   }
 };
 
@@ -349,6 +423,11 @@ const generateBill = async (req, res) => {
 
     const booking = bookingResult.data;
 
+    // Validation: booking must be 'checked-out' to generate bill
+    if (booking.BookingStatus !== 'checked-out') {
+      return res.status(400).json(formatResponse(false, 'Bills can only be generated for checked-out bookings', null, 400));
+    }
+
     // Calculate room charges
     const roomsQuery = `
       SELECT rt.DailyRate
@@ -368,18 +447,34 @@ const generateBill = async (req, res) => {
 
     // Calculate service charges
     const servicesQuery = `
-      SELECT SUM(Quantity * PriceAtUsage) as totalServiceCharges
+      SELECT COALESCE(SUM(Quantity * PriceAtUsage), 0) as totalServiceCharges
       FROM serviceUsage
       WHERE BookingID = ?
     `;
     
     const servicesResult = await findOne(servicesQuery, [bookingId]);
-    const serviceCharges = servicesResult.data?.totalServiceCharges || 0;
+    const serviceCharges = parseFloat(servicesResult.data?.totalServiceCharges) || 0;
 
-    // Calculate totals
-    const subtotal = roomCharges + serviceCharges - discount;
-    const tax = subtotal * taxRate;
+    // Calculate totals with proper number handling
+    const discountAmount = parseFloat(discount) || 0;
+    const taxRateValue = parseFloat(taxRate) || 0;
+    
+    const roomChargesNum = parseFloat(roomCharges) || 0;
+    const serviceChargesNum = parseFloat(serviceCharges) || 0;
+    
+    const subtotal = roomChargesNum + serviceChargesNum - discountAmount;
+    const tax = subtotal * taxRateValue;
     const totalAmount = subtotal + tax;
+
+    console.log('Bill calculation debug:', {
+      roomCharges: roomChargesNum,
+      serviceCharges: serviceChargesNum,
+      discountAmount,
+      taxRateValue,
+      subtotal,
+      tax,
+      totalAmount
+    });
 
     // Check if bill already exists
     const existingBillQuery = 'SELECT BillID FROM bill WHERE BookingID = ?';
@@ -392,14 +487,28 @@ const generateBill = async (req, res) => {
         UPDATE bill SET RoomCharges = ?, ServiceCharges = ?, Discount = ?, Tax = ?, TotalAmount = ?
         WHERE BookingID = ?
       `;
-      billResult = await updateRecord(updateQuery, [roomCharges, serviceCharges, discount, tax, totalAmount, bookingId]);
+      billResult = await updateRecord(updateQuery, [
+        roomChargesNum.toFixed(2), 
+        serviceChargesNum.toFixed(2), 
+        discountAmount.toFixed(2), 
+        tax.toFixed(2), 
+        totalAmount.toFixed(2), 
+        bookingId
+      ]);
     } else {
       // Create new bill
       const insertQuery = `
         INSERT INTO bill (BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount)
         VALUES (?, ?, ?, ?, ?, ?)
       `;
-      billResult = await insertRecord(insertQuery, [bookingId, roomCharges, serviceCharges, discount, tax, totalAmount]);
+      billResult = await insertRecord(insertQuery, [
+        bookingId, 
+        roomChargesNum.toFixed(2), 
+        serviceChargesNum.toFixed(2), 
+        discountAmount.toFixed(2), 
+        tax.toFixed(2), 
+        totalAmount.toFixed(2)
+      ]);
     }
 
     if (!billResult.success) {
@@ -415,11 +524,11 @@ const generateBill = async (req, res) => {
       checkInDate: booking.CheckInDate,
       checkOutDate: booking.CheckOutDate,
       days,
-      roomCharges,
-      serviceCharges,
-      discount,
-      tax,
-      totalAmount
+      roomCharges: roomChargesNum.toFixed(2),
+      serviceCharges: serviceChargesNum.toFixed(2),
+      discount: discountAmount.toFixed(2),
+      tax: tax.toFixed(2),
+      totalAmount: totalAmount.toFixed(2)
     };
 
     res.json(formatResponse(true, 'Bill generated successfully', billData));
@@ -440,6 +549,7 @@ const getBills = async (req, res) => {
              b.Tax, b.TotalAmount, bk.CheckOutDate as BillDate,
              g.Name as GuestName, g.Email as GuestEmail,
              COALESCE(SUM(p.Amount), 0) as PaidAmount,
+             (b.TotalAmount - COALESCE(SUM(p.Amount), 0)) AS RemainingAmount,
              CASE 
                WHEN COALESCE(SUM(p.Amount), 0) >= b.TotalAmount THEN 'paid'
                WHEN COALESCE(SUM(p.Amount), 0) > 0 THEN 'partially_paid'
@@ -450,7 +560,7 @@ const getBills = async (req, res) => {
       JOIN guest g ON bk.GuestID = g.GuestID
       JOIN bookingRooms br ON bk.BookingID = br.BookingID
       JOIN room r ON br.RoomID = r.RoomID
-      LEFT JOIN payment p ON b.BookingID = p.BookingID AND p.PaymentStatus = 'completed'
+      LEFT JOIN payment p ON b.BillID = p.BillID AND p.PaymentStatus = 'completed'  
       WHERE r.BranchID = ?
       GROUP BY b.BillID
       ORDER BY bk.CheckOutDate DESC
@@ -467,6 +577,121 @@ const getBills = async (req, res) => {
   } catch (error) {
     console.error('Get bills error:', error);
     res.status(500).json(formatResponse(false, 'Failed to retrieve bills', null, 500));
+  }
+};
+
+// Check-in booking
+const checkInBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const staffId = req.user.StaffID;
+    const branchId = req.user.BranchID;
+
+    // Get booking details
+    const bookingQuery = `
+      SELECT b.*, g.Name as GuestName
+      FROM booking b
+      JOIN guest g ON b.GuestID = g.GuestID
+      JOIN bookingRooms br ON b.BookingID = br.BookingID
+      JOIN room r ON br.RoomID = r.RoomID
+      WHERE b.BookingID = ? AND r.BranchID = ?
+      LIMIT 1
+    `;
+    
+    const bookingResult = await findOne(bookingQuery, [bookingId, branchId]);
+    
+    if (!bookingResult.success || !bookingResult.data) {
+      return res.status(404).json(formatResponse(false, 'Booking not found in your branch', null, 404));
+    }
+
+    const booking = bookingResult.data;
+
+    // Validation: booking must be 'booked' status
+    if (booking.BookingStatus !== 'booked') {
+      return res.status(400).json(formatResponse(false, `Cannot check-in booking with status: ${booking.BookingStatus}`, null, 400));
+    }
+
+    // Validation: check-in date validation (can check-in on or after CheckInDate)
+    const today = new Date();
+    const checkInDate = new Date(booking.CheckInDate);
+    if (today < checkInDate.setHours(0, 0, 0, 0)) {
+      return res.status(400).json(formatResponse(false, 'Cannot check-in before the scheduled check-in date', null, 400));
+    }
+
+    // Update booking status to checked-in
+    const updateQuery = 'UPDATE booking SET BookingStatus = ? WHERE BookingID = ?';
+    const updateResult = await updateRecord(updateQuery, ['checked-in', bookingId]);
+
+    if (!updateResult.success) {
+      return res.status(400).json(formatResponse(false, updateResult.error, null, 400));
+    }
+
+    // Log audit trail
+    await logAudit(staffId, 'booking', `CHECK-IN - BookingID: ${bookingId}`);
+
+    res.json(formatResponse(true, 'Booking checked-in successfully', { 
+      bookingId, 
+      guestName: booking.GuestName,
+      status: 'checked-in'
+    }));
+
+  } catch (error) {
+    console.error('Check-in booking error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to check-in booking', null, 500));
+  }
+};
+
+// Check-out booking
+const checkOutBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const staffId = req.user.StaffID;
+    const branchId = req.user.BranchID;
+
+    // Get booking details
+    const bookingQuery = `
+      SELECT b.*, g.Name as GuestName
+      FROM booking b
+      JOIN guest g ON b.GuestID = g.GuestID
+      JOIN bookingRooms br ON b.BookingID = br.BookingID
+      JOIN room r ON br.RoomID = r.RoomID
+      WHERE b.BookingID = ? AND r.BranchID = ?
+      LIMIT 1
+    `;
+    
+    const bookingResult = await findOne(bookingQuery, [bookingId, branchId]);
+    
+    if (!bookingResult.success || !bookingResult.data) {
+      return res.status(404).json(formatResponse(false, 'Booking not found in your branch', null, 404));
+    }
+
+    const booking = bookingResult.data;
+
+    // Validation: booking must be 'checked-in' status
+    if (booking.BookingStatus !== 'checked-in') {
+      return res.status(400).json(formatResponse(false, `Cannot check-out booking with status: ${booking.BookingStatus}`, null, 400));
+    }
+
+    // Update booking status to checked-out
+    const updateQuery = 'UPDATE booking SET BookingStatus = ? WHERE BookingID = ?';
+    const updateResult = await updateRecord(updateQuery, ['checked-out', bookingId]);
+
+    if (!updateResult.success) {
+      return res.status(400).json(formatResponse(false, updateResult.error, null, 400));
+    }
+
+    // Log audit trail
+    await logAudit(staffId, 'booking', `CHECK-OUT - BookingID: ${bookingId}`);
+
+    res.json(formatResponse(true, 'Booking checked-out successfully', { 
+      bookingId, 
+      guestName: booking.GuestName,
+      status: 'checked-out'
+    }));
+
+  } catch (error) {
+    console.error('Check-out booking error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to check-out booking', null, 500));
   }
 };
 
@@ -492,46 +717,110 @@ const processPayment = async (req, res) => {
     const bill = billResult.data;
     const bookingId = bill.BookingID;
 
-    // Validate payment amount
-    if (amount > bill.TotalAmount) {
-      return res.status(400).json(formatResponse(false, 'Payment amount cannot exceed bill total', null, 400));
+    // Use integer cents to avoid floating point precision issues
+    const toCents = (v) => {
+      const n = parseFloat(v);
+      if (!Number.isFinite(n)) return 0;
+      return Math.round(n * 100);
+    };
+
+    // Calculate current paid amount to validate against remaining balance (in cents)
+    const paymentsQueryBefore = 'SELECT COALESCE(SUM(Amount), 0) as totalPaid FROM payment WHERE BillID = ? AND PaymentStatus = "completed"';
+    const paymentsResultBefore = await findOne(paymentsQueryBefore, [billId]);
+    const paidSoFarBeforeCents = toCents(paymentsResultBefore.data?.totalPaid || 0);
+    const totalAmountCents = toCents(bill.TotalAmount);
+    const remainingBeforeCents = Math.max(0, totalAmountCents - paidSoFarBeforeCents);
+
+    const amountCents = toCents(amount);
+
+    // Validate payment amount against remaining balance (compare cents)
+    if (amountCents > remainingBeforeCents) {
+      return res.status(400).json(formatResponse(false, 'Payment amount cannot exceed remaining balance', null, 400));
     }
 
-    // Insert payment record (using BookingID as per current table structure)
+    // Insert payment record (using BillID as per current table structure)
     const paymentInsertQuery = `
-      INSERT INTO payment (BookingID, StaffID, PaymentMethod, Amount, PaymentDate, PaymentStatus)
-      VALUES (?, ?, ?, ?, ?, 'completed')
+      INSERT INTO payment (BillID, PaymentMethod, Amount, PaymentDate, PaymentStatus)
+      VALUES (?, ?, ?, ?, ?)
     `;
 
-    const finalPaymentDate = paymentDate || new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().split(' ')[0];
-    const paymentResult = await insertRecord(paymentInsertQuery, [bookingId, staffId, paymentMethod, amount, finalPaymentDate]);
+    const finalPaymentDate = paymentDate || (new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().split(' ')[0]);
+    // Insert using amount as decimal with two fixed decimals
+    const amountToInsert = (amountCents / 100).toFixed(2);
+    const paymentResult = await insertRecord(paymentInsertQuery, [billId, paymentMethod, amountToInsert, finalPaymentDate, 'completed']);
 
     if (!paymentResult.success) {
       return res.status(400).json(formatResponse(false, paymentResult.error, null, 400));
     }
 
-    // Calculate total payments to determine status
-    const paymentsQuery = 'SELECT SUM(Amount) as totalPaid FROM payment WHERE BookingID = ? AND PaymentStatus = "completed"';
-    const paymentsResult = await findOne(paymentsQuery, [bookingId]);
-    const totalPaid = paymentsResult.data?.totalPaid || 0;
-    
+  // Calculate total payments to determine status (after this payment)
+    const paymentsQuery = 'SELECT COALESCE(SUM(Amount), 0) as totalPaid FROM payment WHERE BillID = ? AND PaymentStatus = "completed"';
+    const paymentsResult = await findOne(paymentsQuery, [billId]);
+    const totalPaidCents = toCents(paymentsResult.data?.totalPaid || 0);
+
     let billStatus;
-    if (totalPaid >= bill.TotalAmount) {
+    if (totalPaidCents >= totalAmountCents) {
       billStatus = 'paid';
-    } else if (totalPaid > 0) {
+    } else if (totalPaidCents > 0) {
       billStatus = 'partially_paid';
     } else {
       billStatus = 'pending';
     }
 
+    //Update bill status
+    const updateBillStatusQuery = `
+      UPDATE bill 
+      SET BillStatus = ?
+      WHERE BillID = ?
+    `;
+    await updateRecord(updateBillStatusQuery, [billStatus, billId]);
+
+    // If bill is fully paid, mark rooms as available only if booking is checked-out
+    if (billStatus === 'paid') {
+      try {
+        // First check if booking is checked-out
+        const bookingStatusQuery = 'SELECT BookingStatus FROM booking WHERE BookingID = ?';
+        const bookingStatusResult = await findOne(bookingStatusQuery, [bookingId]);
+        
+        if (bookingStatusResult.success && bookingStatusResult.data?.BookingStatus === 'checked-out') {
+          const updateRoomsQuery = `
+            UPDATE room r
+            JOIN bookingRooms br ON r.RoomID = br.RoomID
+            SET r.Status = 'available'
+            WHERE br.BookingID = ?
+          `;
+          if (!bookingId) {
+            console.warn('processPayment: bookingId missing, cannot update room availability for BillID:', billId);
+          } else {
+            const updateResult = await updateRecord(updateRoomsQuery, [bookingId]);
+            if (!updateResult.success) {
+              console.error('processPayment: failed to update rooms for booking', bookingId, updateResult.error);
+            } else if (updateResult.affectedRows === 0) {
+              console.warn('processPayment: updateRooms affected 0 rows for booking', bookingId);
+            } else {
+              // Log audit for room availability change
+              await logAudit(req.user.StaffID, 'room', `UPDATE - BookingID: ${bookingId} - Rooms set to available after payment`);
+            }
+          }
+        } else {
+          console.log('processPayment: Booking not checked-out, rooms remain occupied until checkout');
+        }
+      } catch (err) {
+        console.error('Failed to update room availability after payment:', err);
+      }
+    }
     // Log audit trail
     await logAudit(req.user.StaffID, 'payment', `CREATE - PaymentID: ${paymentResult.insertId}`);
+
+    // Prepare numeric responses rounded to 2 decimals
+    const totalPaid = (totalPaidCents / 100);
+    const remainingAmount = Math.max(0, (totalAmountCents - totalPaidCents) / 100);
 
     res.status(201).json(formatResponse(true, 'Payment processed successfully', { 
       paymentId: paymentResult.insertId,
       billStatus: billStatus,
-      totalPaid: totalPaid,
-      remainingAmount: Math.max(0, bill.TotalAmount - totalPaid)
+      totalPaid: Number(totalPaid.toFixed(2)),
+      remainingAmount: Number(remainingAmount.toFixed(2))
     }));
 
   } catch (error) {
@@ -546,8 +835,11 @@ module.exports = {
   getGuests,
   createBooking,
   getBookings,
+  checkInBooking,
+  checkOutBooking,
   getServices,
   addServiceUsage,
+  getServiceUsage,
   generateBill,
   getBills,
   processPayment

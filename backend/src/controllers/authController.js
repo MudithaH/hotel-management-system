@@ -92,31 +92,6 @@ const getProfile = async (req, res) => {
   }
 };
 
-// Refresh token (optional - extends session)
-const refreshToken = async (req, res) => {
-  try {
-    const user = req.user;
-
-    // Generate new token with same payload
-    const newToken = generateToken({
-      staffId: user.StaffID,
-      email: user.Email,
-      role: user.DesignationID,
-      branchId: user.BranchID
-    });
-
-    res.json(formatResponse(true, 'Token refreshed successfully', {
-      token: newToken,
-      expiresIn: process.env.JWT_EXPIRE || '7d'
-    }));
-
-  } catch (error) {
-    console.error('Refresh token error:', error);
-    res.status(500).json(
-      formatResponse(false, 'Failed to refresh token', null, 500)
-    );
-  }
-};
 
 // Logout (client-side mainly, but can log for audit)
 const logout = async (req, res) => {
@@ -137,6 +112,5 @@ const logout = async (req, res) => {
 module.exports = {
   login,
   getProfile,
-  refreshToken,
   logout
 };

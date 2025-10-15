@@ -132,7 +132,7 @@ CREATE TABLE `bill` (
   `Tax` decimal(10,2) NOT NULL DEFAULT 0.00,
   `TotalAmount` decimal(10,2) NOT NULL,
   `BillDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `PaymentStatus` varchar(20) NOT NULL DEFAULT 'pending',
+  `BillStatus` varchar(20) NOT NULL DEFAULT 'pending',
   PRIMARY KEY (`BillID`),
   FOREIGN KEY (`BookingID`)
       REFERENCES `booking`(`BookingID`)
@@ -144,6 +144,7 @@ CREATE TABLE `payment` (
   `Amount` decimal(10,2) NOT NULL,
   `PaymentMethod` varchar(50) NOT NULL,
   `PaymentDate` date NOT NULL,
+  `PaymentStatus` varchar(20) NOT NULL DEFAULT 'pending',
   PRIMARY KEY (`PaymentID`),
   FOREIGN KEY (`BillID`)
       REFERENCES `bill`(`BillID`)

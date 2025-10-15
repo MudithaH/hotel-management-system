@@ -14,7 +14,8 @@ import {
   UserPlus,
   Receipt,
   Settings,
-  ClipboardList
+  ClipboardList,
+  LogIn
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -62,6 +63,12 @@ const Sidebar = () => {
       icon: Calendar,
       label: 'Bookings',
       description: 'Manage reservations'
+    },
+    {
+      path: '/staff/operations',
+      icon: LogIn,
+      label: 'Check-in/out',
+      description: 'Check-in and check-out'
     },
     {
       path: '/staff/services',

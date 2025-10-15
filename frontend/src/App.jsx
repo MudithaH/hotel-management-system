@@ -17,6 +17,7 @@ import RoomManagement from './pages/admin/RoomManagement';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import GuestManagement from './pages/staff/GuestManagement';
 import BookingManagement from './pages/staff/BookingManagement';
+import BookingOperations from './pages/staff/BookingOperations';
 import ServiceManagement from './pages/staff/ServiceManagement';
 import BillingManagement from './pages/staff/BillingManagement';
 
@@ -126,6 +127,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BookingManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/staff/operations"
+              element={
+                <ProtectedRoute>
+                  <BookingOperations />
                 </ProtectedRoute>
               }
             />

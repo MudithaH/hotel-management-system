@@ -11,8 +11,11 @@ const {
   getGuests,
   createBooking,
   getBookings,
+  checkInBooking,
+  checkOutBooking,
   getServices,
   addServiceUsage,
+  getServiceUsage,
   generateBill,
   getBills,
   processPayment
@@ -24,20 +27,14 @@ router.use(authenticateToken);
 router.use(requireStaff);
 
 // Room availability routes
-// @route   GET /api/staff/rooms/available
-// @desc    Get available rooms for booking (with date conflict check)
-// @access  Private (Staff/Admin)
+//  GET /api/staff/rooms/available
 router.get('/rooms/available', getAvailableRooms);
 
 // Guest management routes
-// @route   POST /api/staff/guests
-// @desc    Create new guest
-// @access  Private (Staff/Admin)
+//  POST /api/staff/guests
 router.post('/guests', createGuest);
 
-// @route   GET /api/staff/guests
-// @desc    Get all guests
-// @access  Private (Staff/Admin)
+// GET /api/staff/guests
 router.get('/guests', getGuests);
 
 // Booking management routes
@@ -51,6 +48,16 @@ router.post('/bookings', createBooking);
 // @access  Private (Staff/Admin)
 router.get('/bookings', getBookings);
 
+// @route   PUT /api/staff/bookings/:id/checkin
+// @desc    Check-in a booking
+// @access  Private (Staff/Admin)
+router.put('/bookings/:bookingId/checkin', checkInBooking);
+
+// @route   PUT /api/staff/bookings/:id/checkout
+// @desc    Check-out a booking
+// @access  Private (Staff/Admin)
+router.put('/bookings/:bookingId/checkout', checkOutBooking);
+
 // Service management routes
 // @route   GET /api/staff/services
 // @desc    Get all available services
@@ -61,6 +68,11 @@ router.get('/services', getServices);
 // @desc    Add service usage to booking
 // @access  Private (Staff/Admin)
 router.post('/services/usage', addServiceUsage);
+
+// @route   GET /api/staff/services/usage/:bookingId
+// @desc    Get service usage details for booking
+// @access  Private (Staff/Admin)
+router.get('/services/usage/:bookingId', getServiceUsage);
 
 // Billing routes
 // @route   POST /api/staff/bills/:bookingId

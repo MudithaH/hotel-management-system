@@ -194,11 +194,11 @@ async function seedDatabase() {
     // 8. Insert Sample Bookings
     console.log('📅 Seeding bookings...');
     const bookings = [
-      [1, 1, '2024-03-15 14:00:00', '2024-03-18 11:00:00', 'confirmed'],
+      [1, 1, '2024-03-15 14:00:00', '2024-03-18 11:00:00', 'checked-out'],
       [2, 2, '2024-03-16 15:00:00', '2024-03-20 11:00:00', 'checked-in'],
-      [3, 3, '2024-03-17 14:00:00', '2024-03-19 11:00:00', 'confirmed'],
-      [4, 4, '2024-03-18 16:00:00', '2024-03-22 11:00:00', 'confirmed'],
-      [5, 5, '2024-03-19 14:00:00', '2024-03-21 11:00:00', 'confirmed']
+      [3, 3, '2024-03-17 14:00:00', '2024-03-19 11:00:00', 'checked-in'],
+      [4, 4, '2024-03-18 16:00:00', '2024-03-22 11:00:00', 'booked'],
+      [5, 5, '2024-03-19 14:00:00', '2024-03-21 11:00:00', 'checked-out']
     ];
     
     for (const booking of bookings) {
@@ -251,29 +251,30 @@ async function seedDatabase() {
     // 11. Insert Sample Bills
     console.log('💰 Seeding bills...');
     const bills = [
-      [1, 1, 269.97, 41.98, 0.00, 31.20, 343.15], // Booking 1: 3 nights * 89.99 + services
-      [2, 2, 519.96, 125.98, 0.00, 64.59, 709.53], // Booking 2: 4 nights * 129.99 + services
-      [3, 3, 499.98, 25.99, 0.00, 52.60, 578.57]   // Booking 3: 2 nights * 249.99 + services
+      [1, 1, 269.97, 67.97, 0.00, 5.21, 343.15], // Booking 1
+      [2, 2, 519.96, 125.98, 50.00, 7.48, 603.42], // Booking 2 (with discount)
+      [3, 3, 179.99, 25.99, 0.00, 4.59, 210.57]   // Booking 3
     ];
     
     for (const bill of bills) {
       await connection.execute(
-        'INSERT INTO bill (BillID, BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        bill
+        'INSERT INTO bill (BillID, BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount,BillStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [...bill, 'pending']        
       );
     }
 
     // 12. Insert Sample Payments (using BookingID since table has that structure)
     console.log('💳 Seeding payments...');
     const payments = [
-      [1, 1, 1, 343.15, 'credit_card', '2024-03-18 10:30:00', 'completed'],
-      [2, 2, 4, 709.53, 'cash', '2024-03-17 09:15:00', 'completed'],
-      [3, 3, 7, 578.57, 'credit_card', '2024-03-19 11:45:00', 'pending']
+      [1, 1, 343.15, 'credit_card', '2024-03-18 10:00:00', 'completed'], // Full payment for Bill 1
+      [2, 2, 300.00, 'cash', '2024-03-20 12:00:00', 'completed'],        // Partial payment for Bill 2
+      [3, 2, 409.53, 'credit_card', '2024-03-21 09:00:00', 'completed'], // Remaining payment for Bill 2
+      [4, 3, 578.57, 'debit_card', '2024-03-19 11:30:00', 'completed']   // Full payment for Bill 3
     ];
     
     for (const payment of payments) {
       await connection.execute(
-        'INSERT INTO payment (PaymentID, BookingID, StaffID, Amount, PaymentMethod, PaymentDate, PaymentStatus) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO payment (PaymentID, BillID, Amount, PaymentMethod, PaymentDate, PaymentStatus) VALUES (?, ?, ?, ?, ?, ?)',
         payment
       );
     }

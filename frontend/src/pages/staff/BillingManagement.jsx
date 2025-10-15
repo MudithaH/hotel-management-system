@@ -24,6 +24,7 @@ const BillingManagement = () => {
   const [bookings, setBookings] = useState([]);
   const [bills, setBills] = useState([]);
   const [selectedBill, setSelectedBill] = useState(null);
+  const [serviceDetails, setServiceDetails] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showBillModal, setShowBillModal] = useState(false);
@@ -33,7 +34,7 @@ const BillingManagement = () => {
     amount: 0,
     paymentDate: new Date().toISOString().split('T')[0]
   });
-  const [activeTab, setActiveTab] = useState('pending'); // pending, paid, all
+  const [activeTab, setActiveTab] = useState('pending'); // pending, partially, paid, all
 
   // Fetch data on component mount
   useEffect(() => {
@@ -69,7 +70,10 @@ const BillingManagement = () => {
   // Generate bill for a booking
   const generateBill = async (bookingId) => {
     try {
-      const response = await staffAPI.generateBill(bookingId);
+      const response = await staffAPI.generateBill(bookingId, {
+        discount: 0,
+        taxRate: 0.0  // Set to 0% tax rate since your example shows $0.00 tax
+      });
       toast.success('Bill generated successfully');
       await fetchBills(); // Refresh bills
     } catch (error) {
@@ -97,6 +101,17 @@ const BillingManagement = () => {
     }
   };
 
+  // Fetch service details for a booking
+  const fetchServiceDetails = async (bookingId) => {
+    try {
+      const response = await staffAPI.getServiceUsage(bookingId);
+      setServiceDetails(response.data.data.services || []);
+    } catch (error) {
+      console.error('Failed to fetch service details:', error);
+      setServiceDetails([]);
+    }
+  };
+
   // Reset payment form
   const resetPaymentForm = () => {
     setPaymentData({
@@ -119,17 +134,24 @@ const BillingManagement = () => {
   // Open payment modal
   const handleProcessPayment = (bill) => {
     setSelectedBill(bill);
+    const toNumber = (v) => {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    const remaining = bill.RemainingAmount !== undefined ? toNumber(bill.RemainingAmount) : (toNumber(bill.TotalAmount) - toNumber(bill.PaidAmount));
     setPaymentData({
       paymentMethod: 'cash',
-      amount: bill.TotalAmount,
+      amount: remaining > 0 ? remaining : 0,
       paymentDate: new Date().toISOString().split('T')[0]
     });
     setShowPaymentModal(true);
   };
 
   // View bill details
-  const handleViewBill = (bill) => {
+  const handleViewBill = async (bill) => {
     setSelectedBill(bill);
+    await fetchServiceDetails(bill.BookingID);
     setShowBillModal(true);
   };
 
@@ -140,9 +162,10 @@ const BillingManagement = () => {
       bill.BookingID?.toString().includes(searchTerm) ||
       bill.BillID?.toString().includes(searchTerm);
 
-    const matchesTab = 
+    const matchesTab =
       activeTab === 'all' ||
       (activeTab === 'pending' && bill.PaymentStatus === 'pending') ||
+      (activeTab === 'partially' && bill.PaymentStatus === 'partially_paid') ||
       (activeTab === 'paid' && bill.PaymentStatus === 'paid');
 
     return matchesSearch && matchesTab;
@@ -151,7 +174,7 @@ const BillingManagement = () => {
   // Get bills that can be generated (bookings without bills)
   const billableBookings = bookings.filter(booking => {
     const hasBill = bills.some(bill => bill.BookingID === booking.BookingID);
-    return !hasBill && ['confirmed', 'checked-in', 'checked-out'].includes(booking.BookingStatus);
+    return !hasBill && booking.BookingStatus === 'checked-out';
   });
 
   // Format currency
@@ -172,14 +195,29 @@ const BillingManagement = () => {
   };
 
   // Calculate stats
+  const toNumber = (v) => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   const stats = {
     totalBills: bills.length,
-    pendingAmount: bills
-      .filter(bill => bill.PaymentStatus === 'pending')
-      .reduce((sum, bill) => sum + (bill.TotalAmount || 0), 0),
-    paidAmount: bills
-      .filter(bill => bill.PaymentStatus === 'paid')
-      .reduce((sum, bill) => sum + (bill.TotalAmount || 0), 0),
+    // Pending amount includes full pending bills + remaining amounts for partially paid bills
+    pendingAmount:
+      bills
+        .filter((bill) => bill.PaymentStatus === 'pending')
+        .reduce((sum, bill) => sum + toNumber(bill.TotalAmount), 0) +
+      bills
+        .filter((bill) => bill.PaymentStatus === 'partially_paid')
+        .reduce((sum, bill) => sum + toNumber(bill.RemainingAmount), 0),
+    // Paid amount includes fully paid bills + already-paid portion of partially paid bills
+    paidAmount:
+      bills
+        .filter((bill) => bill.PaymentStatus === 'paid')
+        .reduce((sum, bill) => sum + toNumber(bill.TotalAmount), 0) +
+      bills
+        .filter((bill) => bill.PaymentStatus === 'partially_paid')
+        .reduce((sum, bill) => sum + toNumber(bill.PaidAmount), 0),
     billableBookings: billableBookings.length
   };
 
@@ -296,6 +334,16 @@ const BillingManagement = () => {
               Pending ({bills.filter(b => b.PaymentStatus === 'pending').length})
             </button>
             <button
+              onClick={() => setActiveTab('partially')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'partially'
+                  ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Partially Paid ({bills.filter(b => b.PaymentStatus === 'partially_paid').length})
+            </button>
+            <button
               onClick={() => setActiveTab('paid')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'paid'
@@ -362,14 +410,22 @@ const BillingManagement = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-900">
-                        {formatCurrency(bill.TotalAmount)}
+                        {bill.PaymentStatus === 'partially_paid' ? (
+                          <>
+                            <div>{formatCurrency(bill.TotalAmount)}</div>
+                            <div className="text-sm text-gray-500">Paid: {formatCurrency(bill.PaidAmount || 0)}</div>
+                            <div className="text-sm text-gray-500">Remaining: {formatCurrency(bill.RemainingAmount || 0)}</div>
+                          </>
+                        ) : (
+                          <div>{formatCurrency(bill.TotalAmount)}</div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        bill.PaymentStatus === 'paid'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
+                        bill.PaymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                        bill.PaymentStatus === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
                       }`}>
                         {bill.PaymentStatus}
                       </span>
@@ -388,7 +444,7 @@ const BillingManagement = () => {
                           <Eye className="h-4 w-4" />
                           <span>View</span>
                         </button>
-                        {bill.PaymentStatus === 'pending' && (
+                        {(bill.PaymentStatus === 'pending' || bill.PaymentStatus === 'partially_paid') && (
                           <button
                             onClick={() => handleProcessPayment(bill)}
                             className="btn-primary text-sm flex items-center space-x-1"
@@ -463,6 +519,74 @@ const BillingManagement = () => {
                   </div>
                 </div>
 
+                {/* Bill Breakdown */}
+                <div className="space-y-6">
+                  {/* Room Charges */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <h4 className="text-md font-semibold text-gray-900 mb-3">Room Charges</h4>
+                    <div className="flex justify-between">
+                      <span>Room charges</span>
+                      <span>{formatCurrency(selectedBill.RoomCharges)}</span>
+                    </div>
+                  </div>
+
+                  {/* Service Details */}
+                  {serviceDetails.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-gray-900 mb-3">Services Used</h4>
+                      <div className="space-y-2">
+                        {serviceDetails.map((service, index) => (
+                          <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900">{service.ServiceName}</p>
+                              <p className="text-sm text-gray-500">
+                                {service.Description} • Used on {formatDate(service.UsageDate)}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                Qty: {service.Quantity} × {formatCurrency(service.PriceAtUsage)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-medium">{formatCurrency(service.TotalCost)}</span>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex justify-between font-medium pt-2 border-t border-gray-200">
+                          <span>Total Service Charges:</span>
+                          <span>{formatCurrency(selectedBill.ServiceCharges)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bill Summary */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <h4 className="text-md font-semibold text-gray-900 mb-3">Bill Summary</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Room Charges:</span>
+                        <span>{formatCurrency(selectedBill.RoomCharges)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Service Charges:</span>
+                        <span>{formatCurrency(selectedBill.ServiceCharges)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Discount:</span>
+                        <span>-{formatCurrency(selectedBill.Discount)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tax:</span>
+                        <span>{formatCurrency(selectedBill.Tax)}</span>
+                      </div>
+                      <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-2">
+                        <span>Total Amount:</span>
+                        <span>{formatCurrency(selectedBill.TotalAmount)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Bill Total */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center justify-between">
@@ -473,7 +597,7 @@ const BillingManagement = () => {
                   </div>
                 </div>
 
-                {selectedBill.PaymentStatus === 'pending' && (
+                {(selectedBill.PaymentStatus === 'pending' || selectedBill.PaymentStatus === 'partially_paid') && (
                   <div className="mt-6 flex justify-end">
                     <button
                       onClick={() => {
@@ -512,8 +636,11 @@ const BillingManagement = () => {
                   <p className="text-sm font-medium text-blue-900">Bill #{selectedBill.BillID}</p>
                   <p className="text-sm text-blue-700">{selectedBill.GuestName}</p>
                   <p className="text-lg font-bold text-blue-900 mt-2">
-                    Amount Due: {formatCurrency(selectedBill.TotalAmount)}
+                    Amount Due: {formatCurrency(selectedBill.RemainingAmount !== undefined ? selectedBill.RemainingAmount : selectedBill.TotalAmount)}
                   </p>
+                  {selectedBill.PaymentStatus === 'partially_paid' && (
+                    <p className="text-sm text-gray-600">Paid: {formatCurrency(selectedBill.PaidAmount || 0)}</p>
+                  )}
                 </div>
 
                 <div className="space-y-4">
@@ -546,8 +673,8 @@ const BillingManagement = () => {
                       value={paymentData.amount}
                       onChange={handlePaymentInputChange}
                       step="0.01"
-                      min="0"
-                      max={selectedBill.TotalAmount}
+                      min="0.01"
+                      max={(selectedBill.RemainingAmount !== undefined ? selectedBill.RemainingAmount : selectedBill.TotalAmount) || selectedBill.TotalAmount}
                       required
                       className="input-field"
                     />

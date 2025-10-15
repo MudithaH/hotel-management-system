@@ -43,9 +43,9 @@ const ServiceManagement = () => {
     try {
       setIsLoading(true);
       const response = await staffAPI.getBookings();
-      // Filter only active bookings (confirmed or checked-in)
+      // Only allow adding services to checked-in bookings (after check-in, before check-out)
       const activeBookings = (response.data.data || []).filter(
-        booking => ['confirmed', 'checked-in'].includes(booking.BookingStatus)
+        booking => booking.BookingStatus === 'checked-in'
       );
       setBookings(activeBookings);
     } catch (error) {
