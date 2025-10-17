@@ -307,6 +307,147 @@ const getDesignations = async (req, res) => {
     res.status(500).json(formatResponse(false, 'Failed to retrieve designations', null, 500));
   }
 };
+// Get room occupancy report
+const getRoomOccupancyReport = async (req, res) => {
+  try {
+    const { startDate, endDate, branchId } = req.query;
+    const userBranchId = req.user.BranchID;
+    
+    // Use user's branch if no specific branch requested, or if user is not super admin
+    const targetBranchId = branchId || userBranchId;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json(formatResponse(false, 'Start date and end date are required', null, 400));
+    }
+
+    const query = 'CALL GetRoomOccupancyReport(?, ?, ?)';
+    const result = await findMany(query, [startDate, endDate, targetBranchId]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve room occupancy report', null, 500));
+    }
+
+    // Log the report generation
+    await logAudit(req.user.StaffID, 'reports', `Generated room occupancy report for ${startDate} to ${endDate}`);
+
+    res.json(formatResponse(true, 'Room occupancy report retrieved successfully', result.data[0]));
+
+  } catch (error) {
+    console.error('Get room occupancy report error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve room occupancy report', null, 500));
+  }
+};
+
+const getGuestBillingSummary = async (req, res) => {
+  try {
+    const { startDate, endDate, branchId } = req.query;
+    const userBranchId = req.user.BranchID;
+    const targetBranchId = branchId || userBranchId;
+
+    const query = 'CALL GetGuestBillingSummary(?, ?, ?)';
+    const result = await findMany(query, [targetBranchId, startDate || null, endDate || null]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve guest billing summary', null, 500));
+    }
+
+    await logAudit(req.user.StaffID, 'reports', 'Generated guest billing summary report');
+    res.json(formatResponse(true, 'Guest billing summary retrieved successfully', result.data[0]));
+
+  } catch (error) {
+    console.error('Get guest billing summary error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve guest billing summary', null, 500));
+  }
+};
+
+const getServiceUsageReport = async (req, res) => {
+  try {
+    const { startDate, endDate, branchId } = req.query;
+    const userBranchId = req.user.BranchID;
+    const targetBranchId = branchId || userBranchId;
+
+    const query = 'CALL GetServiceUsageReport(?, ?, ?)';
+    const result = await findMany(query, [targetBranchId, startDate || null, endDate || null]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve service usage report', null, 500));
+    }
+
+    await logAudit(req.user.StaffID, 'reports', 'Generated service usage report');
+    res.json(formatResponse(true, 'Service usage report retrieved successfully', result.data[0]));
+
+  } catch (error) {
+    console.error('Get service usage report error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve service usage report', null, 500));
+  }
+};
+
+const getMonthlyRevenueReport = async (req, res) => {
+  try {
+    const { year, branchId } = req.query;
+    const userBranchId = req.user.BranchID;
+    const targetBranchId = branchId || userBranchId;
+    const targetYear = year || new Date().getFullYear();
+
+    const query = 'CALL GetMonthlyRevenueReport(?, ?)';
+    const result = await findMany(query, [targetYear, targetBranchId]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve monthly revenue report', null, 500));
+    }
+
+    await logAudit(req.user.StaffID, 'reports', `Generated monthly revenue report for ${targetYear}`);
+    res.json(formatResponse(true, 'Monthly revenue report retrieved successfully', result.data[0]));
+
+  } catch (error) {
+    console.error('Get monthly revenue report error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve monthly revenue report', null, 500));
+  }
+};
+
+// Get top services report
+const getTopServicesReport = async (req, res) => {
+  try {
+    const { startDate, endDate, branchId, limit } = req.query;
+    const userBranchId = req.user.BranchID;
+    
+    const targetBranchId = branchId || userBranchId;
+    const resultLimit = limit ? parseInt(limit) : 10;
+
+    const query = 'CALL GetTopServicesReport(?, ?, ?, ?)';
+    const result = await findMany(query, [targetBranchId, startDate, endDate, resultLimit]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve top services report', null, 500));
+    }
+
+    await logAudit(req.user.StaffID, 'reports', `Generated top services report`);
+
+    res.json(formatResponse(true, 'Top services report retrieved successfully', result.data[0]));
+
+  } catch (error) {
+    console.error('Get top services report error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve top services report', null, 500));
+  }
+};
+
+// Get all branches (for report filtering)
+const getBranches = async (req, res) => {
+  try {
+    const query = 'SELECT BranchID, City, Address FROM hotelBranch ORDER BY City';
+    const result = await findMany(query);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve branches', null, 500));
+    }
+
+    res.json(formatResponse(true, 'Branches retrieved successfully', result.data));
+
+  } catch (error) {
+    console.error('Get branches error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve branches', null, 500));
+  }
+};
 
 module.exports = {
   getDashboardStats,
@@ -316,5 +457,11 @@ module.exports = {
   deleteStaff,
   getRooms,
   getRoomTypes,
-  getDesignations
+  getDesignations,
+  getRoomOccupancyReport,
+  getGuestBillingSummary,
+  getServiceUsageReport,
+  getMonthlyRevenueReport,
+  getTopServicesReport,
+  getBranches
 };
