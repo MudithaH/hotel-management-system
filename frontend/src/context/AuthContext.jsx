@@ -183,6 +183,7 @@ export const AuthProvider = ({ children }) => {
     return state.user?.DesignationID === 1 || state.user?.DesignationID === 2;
   }, [state.user?.DesignationID]);
 
+
   // Get user's branch ID
   const getUserBranchId = useCallback(() => {
     return state.user?.BranchID;

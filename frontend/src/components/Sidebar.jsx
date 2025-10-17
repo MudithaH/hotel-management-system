@@ -3,7 +3,7 @@
  * Side navigation with role-based menu items
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -23,9 +23,14 @@ import {
   CreditCard
 } from 'lucide-react';
 
-const Sidebar = () => {
+const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
   const { isAdmin } = useAuth();
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname, setSidebarOpen]);
 
   // Admin menu items
   const adminMenuItems = [
@@ -126,50 +131,65 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="w-64 bg-white shadow-sm border-r border-gray-200 h-full">
-      <div className="p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">
-          {isAdmin() ? 'Admin Menu' : 'Staff Menu'}
-        </h2>
+    <>
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-        <nav className="space-y-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = isActiveRoute(item.path);
+      {/* Sidebar */}
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-sm border-r border-gray-200 h-full
+        transform transition-transform duration-300 ease-in-out lg:transform-none
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        <div className="p-4 lg:p-6">
+          <h2 className="text-base lg:text-lg font-semibold text-gray-900 mb-4 lg:mb-6">
+            {isAdmin() ? 'Admin Menu' : 'Staff Menu'}
+          </h2>
 
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors group ${
-                  isActive
-                    ? 'bg-primary-50 text-primary-700 border-l-4 border-primary-600'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <Icon className={`h-5 w-5 ${isActive ? 'text-primary-600' : 'text-gray-500 group-hover:text-gray-700'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${isActive ? 'text-primary-700' : 'text-gray-900'}`}>
-                    {item.label}
-                  </p>
-                  <p className={`text-xs ${isActive ? 'text-primary-600' : 'text-gray-500'}`}>
-                    {item.description}
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+          <nav className="space-y-1 lg:space-y-2">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = isActiveRoute(item.path);
 
-      {/* Footer info */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-gray-50">
-        <div className="text-center">
-          <p className="text-xs text-gray-500">Hotel Management System</p>
-          <p className="text-xs text-gray-400">Version 1.0.0</p>
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center space-x-3 px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-colors group ${
+                    isActive
+                      ? 'bg-primary-50 text-primary-700 border-l-4 border-primary-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-primary-600' : 'text-gray-500 group-hover:text-gray-700'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium ${isActive ? 'text-primary-700' : 'text-gray-900'}`}>
+                      {item.label}
+                    </p>
+                    <p className={`text-xs hidden lg:block ${isActive ? 'text-primary-600' : 'text-gray-500'}`}>
+                      {item.description}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+          </nav>
         </div>
-      </div>
-    </aside>
+
+        {/* Footer info */}
+        <div className="absolute bottom-0 left-0 right-0 p-3 lg:p-4 border-t border-gray-200 bg-gray-50">
+          <div className="text-center">
+            <p className="text-xs text-gray-500">Hotel Management System</p>
+            <p className="text-xs text-gray-400 hidden lg:block">Version 1.0.0</p>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 };
 

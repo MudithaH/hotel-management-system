@@ -308,11 +308,12 @@ const getDesignations = async (req, res) => {
 // Get room occupancy report
 const getRoomOccupancyReport = async (req, res) => {
   try {
-    const { startDate, endDate, branchId } = req.query;
+    const { startDate, endDate } = req.query;
     const userBranchId = req.user.BranchID;
-    
-    // Use user's branch if no specific branch requested, or if user is not super admin
-    const targetBranchId = branchId || userBranchId;
+
+    // Enforce branch-scoped reports: ignore any branchId supplied by client
+    // and always generate reports for the requesting user's branch.
+    const targetBranchId = userBranchId;
 
     if (!startDate || !endDate) {
       return res.status(400).json(formatResponse(false, 'Start date and end date are required', null, 400));
@@ -338,9 +339,10 @@ const getRoomOccupancyReport = async (req, res) => {
 
 const getGuestBillingSummary = async (req, res) => {
   try {
-    const { startDate, endDate, branchId } = req.query;
+    const { startDate, endDate } = req.query;
     const userBranchId = req.user.BranchID;
-    const targetBranchId = branchId || userBranchId;
+    // Enforce branch-scoped reports: ignore any branchId supplied by client
+    const targetBranchId = userBranchId;
 
     const query = 'CALL GetGuestBillingSummary(?, ?, ?)';
     const result = await findMany(query, [targetBranchId, startDate || null, endDate || null]);
@@ -360,9 +362,10 @@ const getGuestBillingSummary = async (req, res) => {
 
 const getServiceUsageReport = async (req, res) => {
   try {
-    const { startDate, endDate, branchId } = req.query;
+    const { startDate, endDate } = req.query;
     const userBranchId = req.user.BranchID;
-    const targetBranchId = branchId || userBranchId;
+    // Enforce branch-scoped reports: ignore any branchId supplied by client
+    const targetBranchId = userBranchId;
 
     const query = 'CALL GetServiceUsageReport(?, ?, ?)';
     const result = await findMany(query, [targetBranchId, startDate || null, endDate || null]);
@@ -382,9 +385,10 @@ const getServiceUsageReport = async (req, res) => {
 
 const getMonthlyRevenueReport = async (req, res) => {
   try {
-    const { year, branchId } = req.query;
+    const { year } = req.query;
     const userBranchId = req.user.BranchID;
-    const targetBranchId = branchId || userBranchId;
+    // Enforce branch-scoped reports: ignore any branchId supplied by client
+    const targetBranchId = userBranchId;
     const targetYear = year || new Date().getFullYear();
 
     const query = 'CALL GetMonthlyRevenueReport(?, ?)';
@@ -406,14 +410,19 @@ const getMonthlyRevenueReport = async (req, res) => {
 // Get top services report
 const getTopServicesReport = async (req, res) => {
   try {
-    const { startDate, endDate, branchId, limit } = req.query;
+    const { startDate, endDate, limit } = req.query;
     const userBranchId = req.user.BranchID;
-    
-    const targetBranchId = branchId || userBranchId;
+
+    // Enforce branch-scoped reports: ignore any branchId supplied by client
+    const targetBranchId = userBranchId;
     const resultLimit = limit ? parseInt(limit) : 10;
 
+    // Convert undefined/empty strings to NULL for the stored procedure
+    const startDateParam = startDate && startDate.trim() !== '' ? startDate : null;
+    const endDateParam = endDate && endDate.trim() !== '' ? endDate : null;
+
     const query = 'CALL GetTopServicesReport(?, ?, ?, ?)';
-    const result = await findMany(query, [targetBranchId, startDate, endDate, resultLimit]);
+    const result = await findMany(query, [targetBranchId, startDateParam, endDateParam, resultLimit]);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve top services report', null, 500));

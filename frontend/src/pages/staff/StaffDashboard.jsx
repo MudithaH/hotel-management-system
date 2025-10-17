@@ -110,12 +110,12 @@ const StaffDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Welcome Header */}
-        <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl text-white p-6">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl text-white p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
             <div>
-              <h1 className="text-2xl font-bold mb-2">
+              <h1 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">
                 Welcome back, {user?.Name}!
               </h1>
               <p className="text-primary-100">
@@ -132,8 +132,8 @@ const StaffDashboard = () => {
 
         {/* Quick Actions */}
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
@@ -142,18 +142,18 @@ const StaffDashboard = () => {
                   to={action.link}
                   className="group card hover:shadow-lg transition-all duration-200 hover:-translate-y-1"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 rounded-lg ${action.bgColor}`}>
-                      <Icon className={`h-6 w-6 ${action.textColor}`} />
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <div className={`p-2 sm:p-3 rounded-lg ${action.bgColor}`}>
+                      <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${action.textColor}`} />
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${action.textColor} ${action.bgColor}`}>
+                    <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${action.textColor} ${action.bgColor}`}>
                       {action.action}
                     </span>
                   </div>
-                  <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
+                  <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 group-hover:text-primary-600 transition-colors text-sm sm:text-base">
                     {action.title}
                   </h3>
-                  <p className="text-sm text-gray-600">{action.description}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">{action.description}</p>
                 </Link>
               );
             })}
@@ -161,7 +161,7 @@ const StaffDashboard = () => {
         </div>
 
         {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Recent Bookings */}
           <div className="lg:col-span-2 card">
             <div className="flex items-center justify-between mb-4">

@@ -23,6 +23,7 @@ const GuestManagement = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editingGuest, setEditingGuest] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -68,20 +69,48 @@ const GuestManagement = () => {
     e.preventDefault();
     
     try {
-      await staffAPI.createGuest(formData);
-      toast.success('Guest created successfully');
-      setShowModal(false);
-      setFormData({ name: '', email: '', phone: '' });
+      if (editingGuest) {
+        // Update existing guest
+        await staffAPI.updateGuest(editingGuest.GuestID, formData);
+        toast.success('Guest updated successfully');
+      } else {
+        // Create new guest
+        await staffAPI.createGuest(formData);
+        toast.success('Guest created successfully');
+      }
+      
+      handleCloseModal();
       fetchGuests();
     } catch (error) {
-      console.error('Failed to create guest:', error);
+      console.error('Failed to save guest:', error);
+      const errorMessage = editingGuest ? 'Failed to update guest' : 'Failed to create guest';
+      toast.error(errorMessage);
     }
   };
 
   // Open modal for creating new guest
   const handleCreateNew = () => {
+    setEditingGuest(null);
     setFormData({ name: '', email: '', phone: '' });
     setShowModal(true);
+  };
+
+  // Open modal for editing existing guest
+  const handleEditGuest = (guest) => {
+    setEditingGuest(guest);
+    setFormData({
+      name: guest.Name,
+      email: guest.Email,
+      phone: guest.Phone
+    });
+    setShowModal(true);
+  };
+
+  // Close modal and reset state
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingGuest(null);
+    setFormData({ name: '', email: '', phone: '' });
   };
 
   if (isLoading) {
@@ -141,7 +170,7 @@ const GuestManagement = () => {
         {/* Guests Table */}
         <div className="card p-0">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-mobile">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -161,7 +190,7 @@ const GuestManagement = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredGuests.map((guest) => (
                   <tr key={guest.GuestID} className="table-row">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2 sm:px-6 sm:py-4" data-label="Guest Information">
                       <div className="flex items-center">
                         <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center mr-4">
                           <span className="text-primary-600 font-medium">
@@ -173,7 +202,7 @@ const GuestManagement = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2 sm:px-6 sm:py-4" data-label="Contact Details">
                       <div className="space-y-1">
                         <div className="flex items-center space-x-2">
                           <Mail className="h-4 w-4 text-gray-400" />
@@ -185,12 +214,16 @@ const GuestManagement = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2 sm:px-6 sm:py-4" data-label="Guest ID">
                       <span className="text-sm font-mono text-gray-900">#{guest.GuestID}</span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-2 sm:px-6 sm:py-4 text-right" data-label="Actions">
                       <div className="flex items-center justify-end space-x-2">
-                        <button className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                        <button 
+                          onClick={() => handleEditGuest(guest)}
+                          className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="Edit guest"
+                        >
                           <Edit className="h-4 w-4" />
                         </button>
                       </div>
@@ -224,10 +257,12 @@ const GuestManagement = () => {
             <div className="bg-white rounded-xl max-w-md w-full">
               <form onSubmit={handleSubmit} className="p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Add New Guest</h2>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {editingGuest ? 'Edit Guest' : 'Add New Guest'}
+                  </h2>
                   <button
                     type="button"
-                    onClick={() => setShowModal(false)}
+                    onClick={handleCloseModal}
                     className="p-2 hover:bg-gray-100 rounded-lg"
                   >
                     <X className="h-5 w-5" />
@@ -284,13 +319,13 @@ const GuestManagement = () => {
                 <div className="flex space-x-3 pt-6">
                   <button
                     type="button"
-                    onClick={() => setShowModal(false)}
+                    onClick={handleCloseModal}
                     className="flex-1 btn-secondary"
                   >
                     Cancel
                   </button>
                   <button type="submit" className="flex-1 btn-primary">
-                    Create Guest
+                    {editingGuest ? 'Update Guest' : 'Create Guest'}
                   </button>
                 </div>
               </form>
