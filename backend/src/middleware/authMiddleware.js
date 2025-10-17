@@ -97,7 +97,7 @@ const requireStaff = (req, res, next) => {
   }
 
   // Both admin (1) and staff (2) can access staff routes
-  if (req.user.DesignationID !== 1 && req.user.DesignationID !== 2) {
+  if ( req.user.DesignationID !== 2) {
     return res.status(403).json({ 
       success: false, 
       message: 'Staff access required' 
