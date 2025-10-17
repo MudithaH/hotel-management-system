@@ -64,7 +64,7 @@ const AdminDashboard = () => {
     },
     {
       title: 'Total Revenue',
-      value: `$${(stats?.totalRevenue || 0).toLocaleString()}`,
+      value: `LKR ${(stats?.totalRevenue || 0).toLocaleString()}`,
       icon: DollarSign,
       color: 'bg-green-500',
       bgColor: 'bg-green-50',
@@ -314,7 +314,7 @@ const AdminDashboard = () => {
           <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6">
             <div className="text-center">
               <p className="text-3xl font-bold text-gray-900 mb-2">
-                ${(stats?.totalRevenue || 0).toLocaleString()}
+                LKR {(stats?.totalRevenue || 0).toLocaleString()}
               </p>
               <p className="text-gray-600">Total Revenue Generated</p>
             </div>

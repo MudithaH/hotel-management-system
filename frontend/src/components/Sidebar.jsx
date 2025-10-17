@@ -165,7 +165,7 @@ const Sidebar = () => {
       {/* Footer info */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-gray-50">
         <div className="text-center">
-          <p className="text-xs text-gray-500">Hotel Management System</p>
+          <p className="text-xs text-gray-500">SkyNest Management System</p>
           <p className="text-xs text-gray-400">Version 1.0.0</p>
         </div>
       </div>

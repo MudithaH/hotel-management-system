@@ -10,6 +10,7 @@ import AuthProvider, { useAuth } from './context/AuthContext';
 import ProtectedRoute from './routes/ProtectedRoute';
 
 // Import pages
+import LandingPage from './pages/LandingPage';
 import Login from './pages/auth/Login';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import StaffManagement from './pages/admin/StaffManagement';
@@ -73,11 +74,12 @@ function App() {
           {/* Application Routes */}
           <Routes>
             {/* Public routes */}
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
 
             {/* Protected route for role-based redirect */}
             <Route
-              path="/"
+              path="/dashboard"
               element={
                 <ProtectedRoute>
                   <RoleBasedRedirect />

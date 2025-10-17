@@ -1,0 +1,80 @@
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 660">
+
+  <!-- Background -->  <!-- Background -->
+
+  <rect width="400" height="300" fill="#0f3557"/>  <rect width="800" height="660" fill="#0a2647"/>
+
+    
+
+  <!-- Mandala Pattern Circle with "S" -->  <!-- Decorative circular pattern with S -->
+
+  <g transform="translate(200, 100)">  <g transform="translate(400, 200)">
+
+    <!-- Outer decorative circle -->    <!-- Outer circle -->
+
+    <circle cx="0" cy="0" r="55" fill="none" stroke="#5dade2" stroke-width="3"/>    <circle cx="0" cy="0" r="90" fill="none" stroke="#7db9e8" stroke-width="3"/>
+
+        
+
+    <!-- Inner decorative petals -->    <!-- Inner decorative petals -->
+
+    <g id="petal">    <g fill="none" stroke="#7db9e8" stroke-width="2.5">
+
+      <!-- Petal shape -->      <!-- 8 petals around -->
+
+      <ellipse cx="0" cy="-40" rx="8" ry="20" fill="none" stroke="#5dade2" stroke-width="2"/>      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(0)"/>
+
+      <ellipse cx="0" cy="-35" rx="5" ry="12" fill="#7ec8e3"/>      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(45)"/>
+
+    </g>      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(90)"/>
+
+          <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(135)"/>
+
+    <!-- Repeat petals 8 times around circle -->      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(180)"/>
+
+    <use href="#petal" transform="rotate(0)"/>      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(225)"/>
+
+    <use href="#petal" transform="rotate(45)"/>      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(270)"/>
+
+    <use href="#petal" transform="rotate(90)"/>      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(315)"/>
+
+    <use href="#petal" transform="rotate(135)"/>    </g>
+
+    <use href="#petal" transform="rotate(180)"/>    
+
+    <use href="#petal" transform="rotate(225)"/>    <!-- Inner circle -->
+
+    <use href="#petal" transform="rotate(270)"/>    <circle cx="0" cy="0" r="50" fill="none" stroke="#7db9e8" stroke-width="2.5"/>
+
+    <use href="#petal" transform="rotate(315)"/>    
+
+        <!-- S letter in center -->
+
+    <!-- Inner circle -->    <text x="0" y="20" font-family="Arial, sans-serif" font-size="70" font-weight="bold" 
+
+    <circle cx="0" cy="0" r="30" fill="none" stroke="#5dade2" stroke-width="3"/>          fill="#7db9e8" text-anchor="middle">S</text>
+
+      </g>
+
+    <!-- Center "S" letter -->  
+
+    <text x="0" y="0" font-family="Georgia, serif" font-size="48" font-weight="bold"   <!-- SKYNEST text -->
+
+          fill="#5dade2" text-anchor="middle" dominant-baseline="central">S</text>  <text x="400" y="420" font-family="Arial, sans-serif" font-size="80" font-weight="bold" 
+
+  </g>        fill="#7db9e8" text-anchor="middle" letter-spacing="8">SKYNEST</text>
+
+    
+
+  <!-- SKYNEST text -->  <!-- BEYOND THE SKY tagline -->
+
+  <text x="200" y="200" font-family="Arial, sans-serif" font-size="52" font-weight="bold"   <text x="400" y="480" font-family="Arial, sans-serif" font-size="28" font-weight="300" 
+
+        fill="#5dade2" text-anchor="middle" letter-spacing="4">SKYNEST</text>        fill="#7db9e8" text-anchor="middle" letter-spacing="12">BEYOND THE SKY</text>
+
+  </svg>
+
+  <!-- Tagline -->
+  <text x="200" y="230" font-family="Arial, sans-serif" font-size="16" 
+        fill="#7ec8e3" text-anchor="middle" letter-spacing="8">BEYOND THE SKY</text>
+</svg>

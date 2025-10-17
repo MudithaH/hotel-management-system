@@ -429,7 +429,7 @@ const BookingManagement = () => {
                                   Room {room.RoomNumber}
                                 </span>
                                 <span className="text-primary-600 font-bold">
-                                  ${room.DailyRate}
+                                  LKR {room.DailyRate?.toLocaleString()}
                                 </span>
                               </div>
                               <div className="text-sm text-gray-500">

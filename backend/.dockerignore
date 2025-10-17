@@ -62,5 +62,6 @@ temp/
 .tmp/
 
 # Database files (database runs locally, not in container)
+# Note: seed.js is included for database initialization
 *.sql
-seed.js
+# seed.js

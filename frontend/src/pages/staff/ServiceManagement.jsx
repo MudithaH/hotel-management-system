@@ -185,7 +185,7 @@ const ServiceManagement = () => {
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium text-gray-900">{service.ServiceName}</h4>
                   <span className="text-lg font-bold text-primary-600">
-                    ${service.Price}
+                    LKR {service.Price?.toLocaleString()}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500">Service ID: {service.ServiceID}</p>
@@ -369,7 +369,7 @@ const ServiceManagement = () => {
                       <option value="">Choose a service</option>
                       {services.map((service) => (
                         <option key={service.ServiceID} value={service.ServiceID}>
-                          {service.ServiceName} - ${service.Price}
+                          {service.ServiceName} - LKR {service.Price?.toLocaleString()}
                         </option>
                       ))}
                     </select>
@@ -409,7 +409,7 @@ const ServiceManagement = () => {
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-green-900">Total Cost:</span>
                         <span className="text-lg font-bold text-green-700">
-                          ${(selectedService.Price * formData.quantity).toFixed(2)}
+                          LKR {((selectedService.Price * formData.quantity) || 0).toLocaleString()}
                         </span>
                       </div>
                     </div>

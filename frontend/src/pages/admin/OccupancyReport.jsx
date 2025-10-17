@@ -306,7 +306,7 @@ const OccupancyReport = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{room.RoomType}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{room.Capacity} guests</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${room.DailyRate}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">LKR {room.DailyRate?.toLocaleString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           room.OccupancyStatus === 'Occupied' 

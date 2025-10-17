@@ -4,9 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Building2, Mail, Lock, LogIn } from 'lucide-react';
+import { Building2, Mail, Lock, LogIn, ArrowLeft } from 'lucide-react';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({
@@ -24,7 +24,7 @@ const Login = () => {
 
   // Redirect if already authenticated
   if (isAuthenticated) {
-    const destination = location.state?.from?.pathname || (isAdmin() ? '/admin/dashboard' : '/staff/dashboard');
+    const destination = location.state?.from?.pathname || '/dashboard';
     return <Navigate to={destination} replace />;
   }
 
@@ -57,25 +57,48 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        {/* Header */}
+    <div className="min-h-screen relative flex items-center justify-center p-4">
+      {/* Background Image with Overlay */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url("https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=2070")',
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/90 via-blue-800/85 to-teal-900/90"></div>
+      </div>
+
+      <div className="relative max-w-md w-full">
+        {/* Back to Home Link */}
+        <div className="mb-4">
+          <Link
+            to="/"
+            className="inline-flex items-center text-white hover:text-blue-200 font-medium transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Home
+          </Link>
+        </div>
+
+        {/* Header with SkyNest Logo */}
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="bg-primary-600 p-3 rounded-full">
-              <Building2 className="h-8 w-8 text-white" />
-            </div>
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/images/skynest-logo.svg" 
+              alt="SkyNest Logo" 
+              className="h-24 w-24"
+            />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          <h2 className="text-3xl font-bold text-white mb-2">
             Welcome Back
           </h2>
-          <p className="text-gray-600">
+          <p className="text-blue-100">
             Sign in to your staff account to continue
           </p>
         </div>
 
         {/* Login form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-white/20">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email field */}
             <div>
@@ -151,18 +174,29 @@ const Login = () => {
           </form>
 
           {/* Demo credentials */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>Admin:</strong> admin@branch1.com / password123</p>
-              <p><strong>Staff:</strong> sarah@branch1.com / password123</p>
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <h3 className="text-sm font-semibold text-blue-900 mb-3">🔑 Demo Credentials:</h3>
+            <div className="text-xs text-gray-700 space-y-2">
+              <div className="bg-white p-2 rounded border border-blue-100">
+                <p className="font-semibold text-blue-700 mb-1">Admin Accounts:</p>
+                <p>• Colombo: admin@colombo.skynest.lk</p>
+                <p>• Kandy: admin@kandy.skynest.lk</p>
+                <p>• Galle: admin@galle.skynest.lk</p>
+              </div>
+              <div className="bg-white p-2 rounded border border-blue-100">
+                <p className="font-semibold text-green-700 mb-1">Staff Accounts:</p>
+                <p>• Colombo: sanduni@colombo.skynest.lk</p>
+                <p>• Kandy: tharindu@kandy.skynest.lk</p>
+                <p>• Galle: dilini@galle.skynest.lk</p>
+              </div>
+              <p className="text-center text-gray-600 font-medium pt-1">Password: password123</p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-6 text-sm text-gray-500">
-          <p>&copy; 2024 Hotel Management System. All rights reserved.</p>
+        <div className="text-center mt-6 text-sm text-white/90">
+          <p>&copy; 2025 SkyNest Management System. All rights reserved.</p>
         </div>
       </div>
     </div>

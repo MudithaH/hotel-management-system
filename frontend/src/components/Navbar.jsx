@@ -22,10 +22,14 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           {/* Logo and title */}
           <div className="flex items-center">
-            <Building2 className="h-8 w-8 text-primary-600 mr-3" />
+            <img 
+              src="/images/skynest-logo.svg" 
+              alt="SkyNest Logo" 
+              className="h-10 w-10 mr-3"
+            />
             <div>
               <h1 className="text-xl font-bold text-gray-900">
-                Hotel Management System
+                SkyNest Management System
               </h1>
               <p className="text-xs text-gray-500">
                 {isAdmin() ? 'Admin Dashboard' : 'Staff Dashboard'}

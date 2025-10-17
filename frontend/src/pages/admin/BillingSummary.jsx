@@ -124,10 +124,7 @@ const BillingSummary = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0);
+    return `LKR ${(amount || 0).toLocaleString()}`;
   };
 
   return (

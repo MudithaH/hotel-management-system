@@ -252,7 +252,7 @@ const StaffManagement = () => {
                         </div>
                         <div className="flex items-center space-x-2">
                           <DollarSign className="h-4 w-4 text-green-600" />
-                          <span className="text-sm text-gray-900">${member.Salary?.toLocaleString()}</span>
+                          <span className="text-sm text-gray-900">LKR {member.Salary?.toLocaleString()}</span>
                         </div>
                       </div>
                     </td>
@@ -386,7 +386,7 @@ const StaffManagement = () => {
                       <option value="">Select designation</option>
                       {designations.map((designation) => (
                         <option key={designation.DesignationID} value={designation.DesignationID}>
-                          {designation.Designation} (${designation.Salary?.toLocaleString()})
+                          {designation.Designation} (LKR {designation.Salary?.toLocaleString()})
                         </option>
                       ))}
                     </select>
