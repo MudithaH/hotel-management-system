@@ -1,0 +1,20 @@
+# ====================================================================
+# Root .gitignore
+# ====================================================================
+
+# Environment variables (contains sensitive data)
+.env
+
+# Docker volumes
+docker-volumes/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
