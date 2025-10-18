@@ -11,9 +11,37 @@ const {
   isValidPhone, 
   datesOverlap, 
   calculateDays,
-
   calculateBillTotal 
 } = require('../utils/helpers');
+
+// Common SQL queries
+const QUERIES = {
+  BOOKING_CONFLICT: `
+    SELECT COUNT(*) as conflicts
+    FROM booking b
+    JOIN bookingRooms br ON b.BookingID = br.BookingID
+    WHERE br.RoomID = ? 
+    AND b.BookingStatus IN ('booked', 'checked-in')
+    AND b.CheckOutDate > ? 
+    AND b.CheckInDate < ?
+  `,
+  ROOM_DETAILS_BY_BOOKING: `
+    SELECT r.RoomID, r.RoomNumber, rt.TypeName, rt.DailyRate
+    FROM bookingRooms br
+    JOIN room r ON br.RoomID = r.RoomID
+    JOIN roomType rt ON r.RoomTypeID = rt.RoomTypeID
+    WHERE br.BookingID = ?
+  `,
+  BOOKING_WITH_GUEST: `
+    SELECT b.*, g.Name as GuestName
+    FROM booking b
+    JOIN guest g ON b.GuestID = g.GuestID
+    JOIN bookingRooms br ON b.BookingID = br.BookingID
+    JOIN room r ON br.RoomID = r.RoomID
+    WHERE b.BookingID = ? AND r.BranchID = ?
+    LIMIT 1
+  `
+};
 
 // Get available rooms for booking (check date conflicts)
 const getAvailableRooms = async (req, res) => {
@@ -50,37 +78,12 @@ const getAvailableRooms = async (req, res) => {
     // Filter out rooms with conflicting bookings
     const availableRooms = [];
     
-    console.log('Checking availability for dates:', { checkInDate, checkOutDate });
-    
     for (const room of roomsResult.data) {
-      // First, let's see what bookings exist for this room
-      const debugQuery = `
-        SELECT b.BookingID, b.CheckInDate, b.CheckOutDate, b.BookingStatus
-        FROM booking b
-        JOIN bookingRooms br ON b.BookingID = br.BookingID
-        WHERE br.RoomID = ? 
-        AND b.BookingStatus IN ('booked', 'checked-in')
-      `;
-      const debugResult = await findMany(debugQuery, [room.RoomID]);
-      console.log(`Room ${room.RoomNumber} existing bookings:`, debugResult.data);
-      
-      const conflictQuery = `
-        SELECT COUNT(*) as conflicts
-        FROM booking b
-        JOIN bookingRooms br ON b.BookingID = br.BookingID
-        WHERE br.RoomID = ? 
-        AND b.BookingStatus IN ('booked', 'checked-in')
-        AND b.CheckOutDate > ? 
-        AND b.CheckInDate < ?
-      `;
-      
-      const conflictResult = await findOne(conflictQuery, [
+      const conflictResult = await findOne(QUERIES.BOOKING_CONFLICT, [
         room.RoomID, 
-        checkInDate,     // Existing checkout must be AFTER new checkin to overlap
-        checkOutDate     // Existing checkin must be BEFORE new checkout to overlap
+        checkInDate,
+        checkOutDate
       ]);
-      
-      console.log(`Room ${room.RoomNumber} conflicts:`, conflictResult.data);
       
       if (conflictResult.success && conflictResult.data.conflicts === 0) {
         availableRooms.push(room);
@@ -175,29 +178,14 @@ const createBooking = async (req, res) => {
       }
 
       // Check for booking conflicts
-      console.log(`Checking conflicts for room ${roomId} with dates:`, { checkInDate, checkOutDate });
-      
-      const conflictQuery = `
-        SELECT COUNT(*) as conflicts, 
-               GROUP_CONCAT(CONCAT(b.BookingID, ':', b.CheckInDate, '-', b.CheckOutDate)) as conflicting_bookings
-        FROM booking b
-        JOIN bookingRooms br ON b.BookingID = br.BookingID
-        WHERE br.RoomID = ? 
-        AND b.BookingStatus IN ('booked', 'checked-in')
-        AND b.CheckOutDate > ? 
-        AND b.CheckInDate < ?
-      `;
-      
-      const conflictResult = await findOne(conflictQuery, [
+      const conflictResult = await findOne(QUERIES.BOOKING_CONFLICT, [
         roomId, 
-        checkInDate,     // Existing checkout must be AFTER new checkin to overlap
-        checkOutDate     // Existing checkin must be BEFORE new checkout to overlap
+        checkInDate,
+        checkOutDate
       ]);
       
-      console.log(`Conflict check result for room ${roomId}:`, conflictResult.data);
-      
       if (conflictResult.success && conflictResult.data.conflicts > 0) {
-        return res.status(400).json(formatResponse(false, `Room ${roomId} is not available for the selected dates. Conflicting bookings: ${conflictResult.data.conflicting_bookings}`, null, 400));
+        return res.status(400).json(formatResponse(false, `Room ${roomId} is not available for the selected dates`, null, 400));
       }
     }
 
@@ -259,15 +247,7 @@ const getBookings = async (req, res) => {
 
     // Get room details for each booking
     for (let booking of result.data) {
-      const roomsQuery = `
-        SELECT r.RoomID, r.RoomNumber, rt.TypeName, rt.DailyRate
-        FROM bookingRooms br
-        JOIN room r ON br.RoomID = r.RoomID
-        JOIN roomType rt ON r.RoomTypeID = rt.RoomTypeID
-        WHERE br.BookingID = ?
-      `;
-      
-      const roomsResult = await findMany(roomsQuery, [booking.BookingID]);
+      const roomsResult = await findMany(QUERIES.ROOM_DETAILS_BY_BOOKING, [booking.BookingID]);
       booking.rooms = roomsResult.success ? roomsResult.data : [];
     }
 
@@ -592,17 +572,7 @@ const checkInBooking = async (req, res) => {
     const branchId = req.user.BranchID;
 
     // Get booking details
-    const bookingQuery = `
-      SELECT b.*, g.Name as GuestName
-      FROM booking b
-      JOIN guest g ON b.GuestID = g.GuestID
-      JOIN bookingRooms br ON b.BookingID = br.BookingID
-      JOIN room r ON br.RoomID = r.RoomID
-      WHERE b.BookingID = ? AND r.BranchID = ?
-      LIMIT 1
-    `;
-    
-    const bookingResult = await findOne(bookingQuery, [bookingId, branchId]);
+    const bookingResult = await findOne(QUERIES.BOOKING_WITH_GUEST, [bookingId, branchId]);
     
     if (!bookingResult.success || !bookingResult.data) {
       return res.status(404).json(formatResponse(false, 'Booking not found in your branch', null, 404));
@@ -653,17 +623,7 @@ const checkOutBooking = async (req, res) => {
     const branchId = req.user.BranchID;
 
     // Get booking details
-    const bookingQuery = `
-      SELECT b.*, g.Name as GuestName
-      FROM booking b
-      JOIN guest g ON b.GuestID = g.GuestID
-      JOIN bookingRooms br ON b.BookingID = br.BookingID
-      JOIN room r ON br.RoomID = r.RoomID
-      WHERE b.BookingID = ? AND r.BranchID = ?
-      LIMIT 1
-    `;
-    
-    const bookingResult = await findOne(bookingQuery, [bookingId, branchId]);
+    const bookingResult = await findOne(QUERIES.BOOKING_WITH_GUEST, [bookingId, branchId]);
     
     if (!bookingResult.success || !bookingResult.data) {
       return res.status(404).json(formatResponse(false, 'Booking not found in your branch', null, 404));
@@ -841,17 +801,7 @@ const cancelBooking = async (req, res) => {
     const branchId = req.user.BranchID;
 
     // Get booking details
-    const bookingQuery = `
-      SELECT b.*, g.Name as GuestName
-      FROM booking b
-      JOIN guest g ON b.GuestID = g.GuestID
-      JOIN bookingRooms br ON b.BookingID = br.BookingID
-      JOIN room r ON br.RoomID = r.RoomID
-      WHERE b.BookingID = ? AND r.BranchID = ?
-      LIMIT 1
-    `;
-    
-    const bookingResult = await findOne(bookingQuery, [bookingId, branchId]);
+    const bookingResult = await findOne(QUERIES.BOOKING_WITH_GUEST, [bookingId, branchId]);
     
     if (!bookingResult.success || !bookingResult.data) {
       return res.status(404).json(formatResponse(false, 'Booking not found in your branch', null, 404));
