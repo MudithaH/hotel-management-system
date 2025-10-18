@@ -25,13 +25,13 @@ const getAvailableRooms = async (req, res) => {
       return res.status(400).json(formatResponse(false, 'Check-in and check-out dates are required', null, 400));
     }
 
-    // Base query to get rooms
+    // Base query to get rooms (don't filter by status - we'll check booking conflicts instead)
     let query = `
       SELECT r.RoomID, r.RoomNumber, r.Status, r.BranchID,
              rt.RoomTypeID, rt.TypeName, rt.Capacity, rt.DailyRate, rt.Amenities
       FROM room r
       JOIN roomType rt ON r.RoomTypeID = rt.RoomTypeID
-      WHERE r.BranchID = ? AND r.Status = 'available'
+      WHERE r.BranchID = ?
     `;
     const params = [branchId];
 
@@ -50,26 +50,37 @@ const getAvailableRooms = async (req, res) => {
     // Filter out rooms with conflicting bookings
     const availableRooms = [];
     
+    console.log('Checking availability for dates:', { checkInDate, checkOutDate });
+    
     for (const room of roomsResult.data) {
+      // First, let's see what bookings exist for this room
+      const debugQuery = `
+        SELECT b.BookingID, b.CheckInDate, b.CheckOutDate, b.BookingStatus
+        FROM booking b
+        JOIN bookingRooms br ON b.BookingID = br.BookingID
+        WHERE br.RoomID = ? 
+        AND b.BookingStatus IN ('booked', 'checked-in')
+      `;
+      const debugResult = await findMany(debugQuery, [room.RoomID]);
+      console.log(`Room ${room.RoomNumber} existing bookings:`, debugResult.data);
+      
       const conflictQuery = `
         SELECT COUNT(*) as conflicts
         FROM booking b
         JOIN bookingRooms br ON b.BookingID = br.BookingID
         WHERE br.RoomID = ? 
         AND b.BookingStatus IN ('booked', 'checked-in')
-        AND (
-          (b.CheckInDate <= ? AND b.CheckOutDate > ?) OR
-          (b.CheckInDate < ? AND b.CheckOutDate >= ?) OR
-          (b.CheckInDate >= ? AND b.CheckOutDate <= ?)
-        )
+        AND b.CheckOutDate > ? 
+        AND b.CheckInDate < ?
       `;
       
       const conflictResult = await findOne(conflictQuery, [
         room.RoomID, 
-        checkOutDate, checkInDate,  // Overlap condition 1
-        checkOutDate, checkInDate,  // Overlap condition 2  
-        checkInDate, checkOutDate   // Overlap condition 3
+        checkInDate,     // Existing checkout must be AFTER new checkin to overlap
+        checkOutDate     // Existing checkin must be BEFORE new checkout to overlap
       ]);
+      
+      console.log(`Room ${room.RoomNumber} conflicts:`, conflictResult.data);
       
       if (conflictResult.success && conflictResult.data.conflicts === 0) {
         availableRooms.push(room);
@@ -164,28 +175,29 @@ const createBooking = async (req, res) => {
       }
 
       // Check for booking conflicts
+      console.log(`Checking conflicts for room ${roomId} with dates:`, { checkInDate, checkOutDate });
+      
       const conflictQuery = `
-        SELECT COUNT(*) as conflicts
+        SELECT COUNT(*) as conflicts, 
+               GROUP_CONCAT(CONCAT(b.BookingID, ':', b.CheckInDate, '-', b.CheckOutDate)) as conflicting_bookings
         FROM booking b
         JOIN bookingRooms br ON b.BookingID = br.BookingID
         WHERE br.RoomID = ? 
         AND b.BookingStatus IN ('booked', 'checked-in')
-        AND (
-          (b.CheckInDate <= ? AND b.CheckOutDate > ?) OR
-          (b.CheckInDate < ? AND b.CheckOutDate >= ?) OR
-          (b.CheckInDate >= ? AND b.CheckOutDate <= ?)
-        )
+        AND b.CheckOutDate > ? 
+        AND b.CheckInDate < ?
       `;
       
       const conflictResult = await findOne(conflictQuery, [
         roomId, 
-        checkOutDate, checkInDate,
-        checkOutDate, checkInDate,
-        checkInDate, checkOutDate
+        checkInDate,     // Existing checkout must be AFTER new checkin to overlap
+        checkOutDate     // Existing checkin must be BEFORE new checkout to overlap
       ]);
       
+      console.log(`Conflict check result for room ${roomId}:`, conflictResult.data);
+      
       if (conflictResult.success && conflictResult.data.conflicts > 0) {
-        return res.status(400).json(formatResponse(false, `Room ${roomId} is not available for the selected dates`, null, 400));
+        return res.status(400).json(formatResponse(false, `Room ${roomId} is not available for the selected dates. Conflicting bookings: ${conflictResult.data.conflicting_bookings}`, null, 400));
       }
     }
 
@@ -821,6 +833,79 @@ const processPayment = async (req, res) => {
   }
 };
 
+// Cancel booking
+const cancelBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const staffId = req.user.StaffID;
+    const branchId = req.user.BranchID;
+
+    // Get booking details
+    const bookingQuery = `
+      SELECT b.*, g.Name as GuestName
+      FROM booking b
+      JOIN guest g ON b.GuestID = g.GuestID
+      JOIN bookingRooms br ON b.BookingID = br.BookingID
+      JOIN room r ON br.RoomID = r.RoomID
+      WHERE b.BookingID = ? AND r.BranchID = ?
+      LIMIT 1
+    `;
+    
+    const bookingResult = await findOne(bookingQuery, [bookingId, branchId]);
+    
+    if (!bookingResult.success || !bookingResult.data) {
+      return res.status(404).json(formatResponse(false, 'Booking not found in your branch', null, 404));
+    }
+
+    const booking = bookingResult.data;
+
+    // Validation: cannot cancel checked-out bookings
+    if (booking.BookingStatus === 'checked-out') {
+      return res.status(400).json(formatResponse(false, 'Cannot cancel a checked-out booking', null, 400));
+    }
+
+    // Validation: cannot cancel cancelled bookings
+    if (booking.BookingStatus === 'cancelled') {
+      return res.status(400).json(formatResponse(false, 'Booking is already cancelled', null, 400));
+    }
+
+    // Update booking status to cancelled
+    const updateQuery = 'UPDATE booking SET BookingStatus = ? WHERE BookingID = ?';
+    const updateResult = await updateRecord(updateQuery, ['cancelled', bookingId]);
+
+    if (!updateResult.success) {
+      return res.status(400).json(formatResponse(false, updateResult.error, null, 400));
+    }
+
+    // Update room status back to available
+    const updateRoomsQuery = `
+      UPDATE room r
+      JOIN bookingRooms br ON r.RoomID = br.RoomID
+      SET r.Status = 'available'
+      WHERE br.BookingID = ?
+    `;
+    
+    const roomUpdateResult = await updateRecord(updateRoomsQuery, [bookingId]);
+    
+    if (!roomUpdateResult.success) {
+      console.error('Failed to update room status:', roomUpdateResult.error);
+    }
+
+    // Log audit trail
+    await logAudit(staffId, 'booking', `CANCEL - BookingID: ${bookingId}`);
+
+    res.json(formatResponse(true, 'Booking cancelled successfully', { 
+      bookingId, 
+      guestName: booking.GuestName,
+      status: 'cancelled'
+    }));
+
+  } catch (error) {
+    console.error('Cancel booking error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to cancel booking', null, 500));
+  }
+};
+
 module.exports = {
   getAvailableRooms,
   createGuest,
@@ -834,5 +919,6 @@ module.exports = {
   getServiceUsage,
   generateBill,
   getBills,
-  processPayment
+  processPayment,
+  cancelBooking
 };
