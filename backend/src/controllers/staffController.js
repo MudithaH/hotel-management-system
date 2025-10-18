@@ -6,7 +6,6 @@
 const { findMany, findOne, insertRecord, updateRecord, deleteRecord } = require('../config/db');
 const { 
   formatResponse, 
-  logAudit, 
   isValidEmail, 
   isValidPhone, 
   datesOverlap, 
@@ -123,9 +122,6 @@ const createGuest = async (req, res) => {
       return res.status(400).json(formatResponse(false, result.error, null, 400));
     }
 
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'guest', `CREATE - GuestID: ${result.insertId}`);
-
     res.status(201).json(formatResponse(true, 'Guest created successfully', { guestId: result.insertId }));
 
   } catch (error) {
@@ -211,9 +207,6 @@ const createBooking = async (req, res) => {
       // Update room status to occupied
       await updateRecord('UPDATE room SET Status = ? WHERE RoomID = ?', ['occupied', roomId]);
     }
-
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'booking', `CREATE - BookingID: ${bookingId}`);
 
     res.status(201).json(formatResponse(true, 'Booking created successfully', { bookingId }));
 
@@ -323,9 +316,6 @@ const addServiceUsage = async (req, res) => {
     if (!result.success) {
       return res.status(400).json(formatResponse(false, result.error, null, 400));
     }
-
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'serviceUsage', `CREATE - UsageID: ${result.insertId}`);
 
     // If a bill already exists for this booking, update its ServiceCharges and TotalAmount
     try {
@@ -499,9 +489,6 @@ const generateBill = async (req, res) => {
       return res.status(400).json(formatResponse(false, billResult.error, null, 400));
     }
 
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'bill', `GENERATE - BookingID: ${bookingId}`);
-
     const billData = {
       bookingId,
       guestName: booking.GuestName,
@@ -600,9 +587,6 @@ const checkInBooking = async (req, res) => {
       return res.status(400).json(formatResponse(false, updateResult.error, null, 400));
     }
 
-    // Log audit trail
-    await logAudit(staffId, 'booking', `CHECK-IN - BookingID: ${bookingId}`);
-
     res.json(formatResponse(true, 'Booking checked-in successfully', { 
       bookingId, 
       guestName: booking.GuestName,
@@ -643,9 +627,6 @@ const checkOutBooking = async (req, res) => {
     if (!updateResult.success) {
       return res.status(400).json(formatResponse(false, updateResult.error, null, 400));
     }
-
-    // Log audit trail
-    await logAudit(staffId, 'booking', `CHECK-OUT - BookingID: ${bookingId}`);
 
     res.json(formatResponse(true, 'Booking checked-out successfully', { 
       bookingId, 
@@ -761,9 +742,6 @@ const processPayment = async (req, res) => {
               console.error('processPayment: failed to update rooms for booking', bookingId, updateResult.error);
             } else if (updateResult.affectedRows === 0) {
               console.warn('processPayment: updateRooms affected 0 rows for booking', bookingId);
-            } else {
-              // Log audit for room availability change
-              await logAudit(req.user.StaffID, 'room', `UPDATE - BookingID: ${bookingId} - Rooms set to available after payment`);
             }
           }
         } else {
@@ -773,8 +751,6 @@ const processPayment = async (req, res) => {
         console.error('Failed to update room availability after payment:', err);
       }
     }
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'payment', `CREATE - PaymentID: ${paymentResult.insertId}`);
 
     // Prepare numeric responses rounded to 2 decimals
     const totalPaid = (totalPaidCents / 100);
@@ -840,9 +816,6 @@ const cancelBooking = async (req, res) => {
     if (!roomUpdateResult.success) {
       console.error('Failed to update room status:', roomUpdateResult.error);
     }
-
-    // Log audit trail
-    await logAudit(staffId, 'booking', `CANCEL - BookingID: ${bookingId}`);
 
     res.json(formatResponse(true, 'Booking cancelled successfully', { 
       bookingId, 
