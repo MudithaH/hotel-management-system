@@ -153,9 +153,6 @@ const GuestManagement = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Guest ID
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -186,14 +183,7 @@ const GuestManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm font-mono text-gray-900">#{guest.GuestID}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
-                          <Edit className="h-4 w-4" />
-                        </button>
-                      </div>
+                      <span className="text-sm font-mono text-gray-900">{guest.GuestID}</span>
                     </td>
                   </tr>
                 ))}

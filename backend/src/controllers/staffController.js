@@ -18,13 +18,29 @@ const {
 // Get available rooms for booking (check date conflicts)
 const getAvailableRooms = async (req, res) => {
   try {
-    const { checkInDate, checkOutDate, roomTypeId } = req.query;
+    const { checkInDate, checkOutDate, room_Type } = req.query;
     const branchId = req.user.BranchID;
 
     if (!checkInDate || !checkOutDate) {
       return res.status(400).json(formatResponse(false, 'Check-in and check-out dates are required', null, 400));
     }
 
+        let roomTypeId = '';
+
+    if (room_Type){
+      let getType = `
+      SELECT RoomTypeID
+      FROM roomType
+      WHERE TypeName = ?
+    `;
+    const roomTyperesult = await findOne(getType, [room_Type]);
+
+    if (!roomTyperesult.success || !roomTyperesult.data) {
+      return res.status(404).json(formatResponse(false, 'RoomType not found', null, 404));
+    }
+    roomTypeId = roomTyperesult.data.RoomTypeID;
+    }
+    
     // Base query to get rooms
     let query = `
       SELECT r.RoomID, r.RoomNumber, r.Status, r.BranchID,

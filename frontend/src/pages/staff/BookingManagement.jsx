@@ -30,8 +30,11 @@ const BookingManagement = () => {
     guestId: '',
     checkInDate: '',
     checkOutDate: '',
-    roomIds: []
+    room_Type: '',
+    roomIds: []   
   });
+
+
 
   // Fetch data on component mount
   useEffect(() => {
@@ -43,10 +46,10 @@ const BookingManagement = () => {
 
   // Fetch available rooms when dates change
   useEffect(() => {
-    if (formData.checkInDate && formData.checkOutDate) {
+    if (formData.checkInDate && formData.checkOutDate ) {
       fetchAvailableRooms();
     }
-  }, [formData.checkInDate, formData.checkOutDate]);
+  }, [formData.checkInDate, formData.checkOutDate, formData.room_Type]);
 
   const fetchBookings = async () => {
     try {
@@ -74,8 +77,10 @@ const BookingManagement = () => {
     try {
       const response = await staffAPI.getAvailableRooms({
         checkInDate: formData.checkInDate,
-        checkOutDate: formData.checkOutDate
+        checkOutDate: formData.checkOutDate,
+        room_Type: formData.room_Type,
       });
+
       setAvailableRooms(response.data.data || []);
     } catch (error) {
       console.error('Failed to fetch available rooms:', error);
@@ -106,6 +111,8 @@ const BookingManagement = () => {
         ? prev.roomIds.filter(id => id !== roomId)
         : [...prev.roomIds, roomId]
     }));
+   
+    
   };
 
   // Handle form submission
@@ -398,6 +405,24 @@ const BookingManagement = () => {
                         required
                         className="input-field"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Room Type *
+                      </label>
+                      <select
+                        name="room_Type"
+                        value={formData.room_Type}
+                        onChange={handleInputChange}
+                        className="input-field"
+                      >
+                        <option value="">-- Select Room Type --</option>
+                        <option value="Standard Single">Standard Single</option>
+                        <option value="Standard Double">Standard Double</option>
+                        <option value="Presidential Suite">Presidential Suite</option>
+                        <option value="Family Room">Family Room</option>
+                        <option value="Deluxe Suite">Deluxe Suite</option>
+                      </select>
                     </div>
                   </div>
 

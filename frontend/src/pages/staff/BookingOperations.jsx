@@ -374,8 +374,40 @@ const BookingOperations = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
+                      {/* Existing dynamic button */}
                       {getActionButton(booking)}
+
+                      {/* Always-visible small vertical buttons */}
+                      <div className="flex flex-col items-end space-y-2 mt-2">
+                        <button
+                          onClick={() => handleCheckIn(booking.BookingID, booking.GuestName)}
+                          disabled={processingId === booking.BookingID}
+                          className="btn-primary text-xs px-2 py-1 flex items-center space-x-1"
+                        >
+                          {processingId === booking.BookingID ? (
+                            <Loader className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <LogIn className="h-3 w-3" />
+                          )}
+                          <span>Check In</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleCheckOut(booking.BookingID, booking.GuestName)}
+                          disabled={processingId === booking.BookingID}
+                          className="btn-secondary text-xs px-2 py-1 flex items-center space-x-1"
+                        >
+                          {processingId === booking.BookingID ? (
+                            <Loader className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <LogOut className="h-3 w-3" />
+                          )}
+                          <span>Check Out</span>
+                        </button>
+                      </div>
                     </td>
+
+
                   </tr>
                 ))}
               </tbody>
