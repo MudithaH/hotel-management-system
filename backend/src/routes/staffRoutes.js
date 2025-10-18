@@ -18,7 +18,8 @@ const {
   getServiceUsage,
   generateBill,
   getBills,
-  processPayment
+  processPayment,
+  cancelBooking
 } = require('../controllers/staffController');
 const { authenticateToken, requireStaff } = require('../middleware/authMiddleware');
 
@@ -57,6 +58,11 @@ router.put('/bookings/:bookingId/checkin', checkInBooking);
 // @desc    Check-out a booking
 // @access  Private (Staff/Admin)
 router.put('/bookings/:bookingId/checkout', checkOutBooking);
+
+// @route   PUT /api/staff/bookings/:id/cancel
+// @desc    Cancel a booking
+// @access  Private (Staff/Admin)
+router.put('/bookings/:bookingId/cancel', cancelBooking);
 
 // Service management routes
 // @route   GET /api/staff/services
