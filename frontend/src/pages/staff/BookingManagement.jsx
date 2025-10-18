@@ -14,7 +14,8 @@ import {
   Clock,
   CheckCircle,
   X,
-  MapPin
+  MapPin,
+  XCircle
 } from 'lucide-react';
 import Layout from '../../components/Layout';
 import toast from 'react-hot-toast';
@@ -140,6 +141,23 @@ const BookingManagement = () => {
     }
   };
 
+  // Handle cancel booking
+  const handleCancelBooking = async (bookingId, guestName) => {
+    if (!confirm(`Are you sure you want to cancel the booking for ${guestName}?`)) {
+      return;
+    }
+
+    try {
+      await staffAPI.cancelBooking(bookingId);
+      toast.success(`Booking for ${guestName} cancelled successfully`);
+      fetchBookings();
+    } catch (error) {
+      console.error('Failed to cancel booking:', error);
+      const message = error.response?.data?.message || 'Failed to cancel booking';
+      toast.error(message);
+    }
+  };
+
   // Open modal for creating new booking
   const handleCreateNew = () => {
     setFormData({
@@ -167,6 +185,7 @@ const BookingManagement = () => {
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
       case 'confirmed':
+      case 'booked':
         return 'bg-blue-100 text-blue-800';
       case 'checked-in':
         return 'bg-green-100 text-green-800';
@@ -254,6 +273,9 @@ const BookingManagement = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Rooms
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -316,6 +338,23 @@ const BookingManagement = () => {
                           <span className="text-sm text-gray-500">No rooms assigned</span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {booking.BookingStatus === 'booked' && (
+                        <button
+                          onClick={() => handleCancelBooking(booking.BookingID, booking.GuestName)}
+                          className="px-3 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm flex items-center space-x-1 transition-colors ml-auto"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          <span>Cancel</span>
+                        </button>
+                      )}
+                      {booking.BookingStatus === 'cancelled' && (
+                        <span className="flex items-center justify-end space-x-1 text-sm text-red-500">
+                          <XCircle className="h-4 w-4" />
+                          <span>Cancelled</span>
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
