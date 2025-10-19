@@ -44,7 +44,7 @@ FOR EACH ROW
 BEGIN
     -- Use a system user ID (0) or the new staff's own ID for self-registration
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (NEW.StaffID, 'staff', CONCAT('CREATE - StaffID: ', NEW.StaffID), NOW());
+    VALUES (@current_staff_id, 'staff', CONCAT('CREATE - StaffID: ', NEW.StaffID), NOW());
 END$$
 
 CREATE TRIGGER staff_after_update
@@ -53,7 +53,7 @@ FOR EACH ROW
 BEGIN
     -- Log which staff member was updated
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (NEW.StaffID, 'staff', CONCAT('UPDATE - StaffID: ', NEW.StaffID), NOW());
+    VALUES (@current_staff_id, 'staff', CONCAT('UPDATE - StaffID: ', NEW.StaffID), NOW());
 END$$
 
 CREATE TRIGGER staff_after_delete
@@ -62,7 +62,7 @@ FOR EACH ROW
 BEGIN
     -- Use a system user ID (0) since the deleted staff can't log their own deletion
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (0, 'staff', CONCAT('DELETE - StaffID: ', OLD.StaffID), NOW());
+    VALUES (@current_staff_id, 'staff', CONCAT('DELETE - StaffID: ', OLD.StaffID), NOW());
 END$$
 
 -- =============================================
@@ -73,9 +73,9 @@ CREATE TRIGGER guest_after_insert
 AFTER INSERT ON guest
 FOR EACH ROW
 BEGIN
-    -- Log guest creation (StaffID should be set by application context if needed)
+    -- Log guest creation using session variable for StaffID
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (1, 'guest', CONCAT('CREATE - GuestID: ', NEW.GuestID), NOW());
+    VALUES (@current_staff_id, 'guest', CONCAT('CREATE - GuestID: ', NEW.GuestID), NOW());
 END$$
 
 CREATE TRIGGER guest_after_update
@@ -83,7 +83,7 @@ AFTER UPDATE ON guest
 FOR EACH ROW
 BEGIN
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (1, 'guest', CONCAT('UPDATE - GuestID: ', NEW.GuestID), NOW());
+    VALUES (@current_staff_id, 'guest', CONCAT('UPDATE - GuestID: ', NEW.GuestID), NOW());
 END$$
 
 CREATE TRIGGER guest_after_delete
@@ -91,7 +91,7 @@ AFTER DELETE ON guest
 FOR EACH ROW
 BEGIN
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (1, 'guest', CONCAT('DELETE - GuestID: ', OLD.GuestID), NOW());
+    VALUES (@current_staff_id, 'guest', CONCAT('DELETE - GuestID: ', OLD.GuestID), NOW());
 END$$
 
 -- =============================================
@@ -103,7 +103,7 @@ AFTER INSERT ON booking
 FOR EACH ROW
 BEGIN
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (1, 'booking', CONCAT('CREATE - BookingID: ', NEW.BookingID), NOW());
+    VALUES (@current_staff_id, 'booking', CONCAT('CREATE - BookingID: ', NEW.BookingID), NOW());
 END$$
 
 CREATE TRIGGER booking_after_update
@@ -129,7 +129,7 @@ BEGIN
     END IF;
     
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (1, 'booking', operation_type, NOW());
+    VALUES (@current_staff_id, 'booking', operation_type, NOW());
 END$$
 
 CREATE TRIGGER booking_after_delete
@@ -137,7 +137,7 @@ AFTER DELETE ON booking
 FOR EACH ROW
 BEGIN
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (1, 'booking', CONCAT('DELETE - BookingID: ', OLD.BookingID), NOW());
+    VALUES (@current_staff_id, 'booking', CONCAT('DELETE - BookingID: ', OLD.BookingID), NOW());
 END$$
 
 -- =============================================
@@ -149,7 +149,7 @@ AFTER INSERT ON payment
 FOR EACH ROW
 BEGIN
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (1, 'payment', CONCAT('CREATE - PaymentID: ', NEW.PaymentID, ' - Amount: ', NEW.Amount), NOW());
+    VALUES (@current_staff_id, 'payment', CONCAT('CREATE - PaymentID: ', NEW.PaymentID, ' - Amount: ', NEW.Amount), NOW());
 END$$
 
 -- =============================================
@@ -161,7 +161,7 @@ AFTER INSERT ON serviceUsage
 FOR EACH ROW
 BEGIN
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (1, 'serviceUsage', CONCAT('CREATE - UsageID: ', NEW.UsageID, ' - BookingID: ', NEW.BookingID), NOW());
+    VALUES (@current_staff_id, 'serviceUsage', CONCAT('CREATE - UsageID: ', NEW.UsageID, ' - BookingID: ', NEW.BookingID), NOW());
 END$$
 
 CREATE TRIGGER serviceUsage_after_update
@@ -169,7 +169,7 @@ AFTER UPDATE ON serviceUsage
 FOR EACH ROW
 BEGIN
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (1, 'serviceUsage', CONCAT('UPDATE - UsageID: ', NEW.UsageID), NOW());
+    VALUES (@current_staff_id, 'serviceUsage', CONCAT('UPDATE - UsageID: ', NEW.UsageID), NOW());
 END$$
 
 CREATE TRIGGER serviceUsage_after_delete
@@ -177,7 +177,7 @@ AFTER DELETE ON serviceUsage
 FOR EACH ROW
 BEGIN
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (1, 'serviceUsage', CONCAT('DELETE - UsageID: ', OLD.UsageID), NOW());
+    VALUES (@current_staff_id, 'serviceUsage', CONCAT('DELETE - UsageID: ', OLD.UsageID), NOW());
 END$$
 
 -- =============================================
@@ -191,7 +191,7 @@ BEGIN
     -- Only log status changes for rooms
     IF OLD.Status != NEW.Status THEN
         INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-        VALUES (1, 'room', CONCAT('UPDATE - RoomID: ', NEW.RoomID, ' - Status changed from ', OLD.Status, ' to ', NEW.Status), NOW());
+        VALUES (@current_staff_id, 'room', CONCAT('UPDATE - RoomID: ', NEW.RoomID, ' - Status changed from ', OLD.Status, ' to ', NEW.Status), NOW());
     END IF;
 END$$
 
@@ -200,13 +200,15 @@ DELIMITER ;
 -- =============================================
 -- NOTES:
 -- =============================================
--- 1. All triggers use StaffID = 1 as a placeholder. In a production system,
---    you might want to use a session variable or application-level context
---    to track which staff member made the change.
+-- 1. All triggers use @current_staff_id session variable to dynamically track
+--    which staff member made the change. The application sets this variable
+--    automatically via the authentication middleware.
+--    To set from application: SET @current_staff_id = 123;
 --
--- 2. To set the StaffID dynamically, you can use MySQL session variables:
---    SET @current_staff_id = 123;
---    Then reference @current_staff_id in triggers instead of hardcoded 1.
+-- 2. The StaffID in AuditLog is nullable (as of the foreign key fix).
+--    - This allows @current_staff_id to be NULL for system operations
+--    - This allows staff deletion while preserving audit history (ON DELETE SET NULL)
+--    - Query audit logs with LEFT JOIN to handle deleted staff
 --
 -- 3. The staff table triggers use special handling:
 --    - INSERT: Uses NEW.StaffID (self-registration)
@@ -216,15 +218,18 @@ DELIMITER ;
 -- 4. For bill generation, no trigger is created since bills are calculated
 --    values and the payment trigger already logs financial transactions.
 --
--- 5. To improve StaffID tracking, consider creating a stored procedure wrapper:
---    CREATE PROCEDURE SetCurrentStaff(IN staff_id INT)
---    BEGIN
---        SET @current_staff_id = staff_id;
---    END;
+-- 5. To use the session variable in your application, execute before operations:
+--    SET @current_staff_id = <logged_in_staff_id>;
 --    
---    Then call it from your application before database operations:
---    CALL SetCurrentStaff(123);
+--    Example in Node.js:
+--    await connection.query('SET @current_staff_id = ?', [req.user.staffId]);
+--    await connection.query('INSERT INTO guest ...');
 --
 -- 6. You can query the audit log with:
---    SELECT * FROM AuditLog ORDER BY ChangedAt DESC LIMIT 100;
+--    SELECT 
+--      al.*,
+--      COALESCE(s.Name, '[Deleted Staff]') as StaffName
+--    FROM AuditLog al
+--    LEFT JOIN staff s ON al.StaffID = s.StaffID
+--    ORDER BY al.ChangedAt DESC LIMIT 100;
 -- =============================================
