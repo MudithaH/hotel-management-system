@@ -37,6 +37,14 @@ const QUERIES = {
     JOIN room r ON br.RoomID = r.RoomID
     WHERE b.BookingID = ? AND r.BranchID = ?
     LIMIT 1
+  `,
+  BOOKING_STATUS: 'SELECT BookingStatus FROM booking WHERE BookingID = ?',
+  UPDATE_BOOKING_STATUS: 'UPDATE booking SET BookingStatus = ? WHERE BookingID = ?',
+  UPDATE_ROOM_STATUS: `
+    UPDATE room r
+    JOIN bookingRooms br ON r.RoomID = br.RoomID
+    SET r.Status = ?
+    WHERE br.BookingID = ?
   `
 };
 
@@ -158,9 +166,13 @@ const updateGuest = async (req, res) => {
     }
 
     // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!isValidEmail(email)) {
       return res.status(400).json(formatResponse(false, 'Invalid email format', null, 400));
+    }
+
+    // Validate phone format
+    if (!isValidPhone(phone)) {
+      return res.status(400).json(formatResponse(false, 'Invalid phone format', null, 400));
     }
 
     // Check if guest exists
@@ -328,8 +340,7 @@ const addServiceUsage = async (req, res) => {
     }
 
     // Validate booking exists and is checked-in
-    const bookingQuery = 'SELECT BookingStatus FROM booking WHERE BookingID = ?';
-    const bookingResult = await findOne(bookingQuery, [bookingId]);
+    const bookingResult = await findOne(QUERIES.BOOKING_STATUS, [bookingId]);
 
     if (!bookingResult.success || !bookingResult.data) {
       return res.status(404).json(formatResponse(false, 'Booking not found', null, 404));
@@ -347,19 +358,16 @@ const addServiceUsage = async (req, res) => {
       return res.status(404).json(formatResponse(false, 'Service not found', null, 404));
     }
 
-    const priceAtUsage = serviceResult.data.Price;
+    const priceAtUsage = parseFloat(serviceResult.data.Price) || 0;
     const finalUsageDate = usageDate || new Date().toISOString().split('T')[0];
-
-    // Coerce numeric values
     const qty = parseInt(quantity) || 0;
-    const priceNum = parseFloat(serviceResult.data.Price) || 0;
 
     const query = `
       INSERT INTO serviceUsage (BookingID, ServiceID, UsageDate, Quantity, PriceAtUsage)
       VALUES (?, ?, ?, ?, ?)
     `;
 
-    const result = await insertRecord(query, [bookingId, serviceId, finalUsageDate, qty, priceNum]);
+    const result = await insertRecord(query, [bookingId, serviceId, finalUsageDate, qty, priceAtUsage]);
 
     if (!result.success) {
       return res.status(400).json(formatResponse(false, result.error, null, 400));
@@ -614,8 +622,7 @@ const checkInBooking = async (req, res) => {
     }
 
     // Update booking status to checked-in
-    const updateQuery = 'UPDATE booking SET BookingStatus = ? WHERE BookingID = ?';
-    const updateResult = await updateRecord(updateQuery, ['checked-in', bookingId]);
+    const updateResult = await updateRecord(QUERIES.UPDATE_BOOKING_STATUS, ['checked-in', bookingId]);
 
     if (!updateResult.success) {
       return res.status(400).json(formatResponse(false, updateResult.error, null, 400));
@@ -654,8 +661,7 @@ const checkOutBooking = async (req, res) => {
     }
 
     // Update booking status to checked-out
-    const updateQuery = 'UPDATE booking SET BookingStatus = ? WHERE BookingID = ?';
-    const updateResult = await updateRecord(updateQuery, ['checked-out', bookingId]);
+    const updateResult = await updateRecord(QUERIES.UPDATE_BOOKING_STATUS, ['checked-out', bookingId]);
 
     if (!updateResult.success) {
       return res.status(400).json(formatResponse(false, updateResult.error, null, 400));
@@ -740,17 +746,10 @@ const processPayment = async (req, res) => {
 
     // If fully paid and booking is checked-out, mark rooms as available
     if (billStatus === 'paid') {
-      const bookingStatusQuery = 'SELECT BookingStatus FROM booking WHERE BookingID = ?';
-      const bookingStatusResult = await findOne(bookingStatusQuery, [bill.BookingID]);
+      const bookingStatusResult = await findOne(QUERIES.BOOKING_STATUS, [bill.BookingID]);
       
       if (bookingStatusResult.success && bookingStatusResult.data?.BookingStatus === 'checked-out') {
-        const updateRoomsQuery = `
-          UPDATE room r
-          JOIN bookingRooms br ON r.RoomID = br.RoomID
-          SET r.Status = 'available'
-          WHERE br.BookingID = ?
-        `;
-        await updateRecord(updateRoomsQuery, [bill.BookingID]);
+        await updateRecord(QUERIES.UPDATE_ROOM_STATUS, ['available', bill.BookingID]);
       }
     }
 
@@ -793,22 +792,14 @@ const cancelBooking = async (req, res) => {
     }
 
     // Update booking status to cancelled
-    const updateQuery = 'UPDATE booking SET BookingStatus = ? WHERE BookingID = ?';
-    const updateResult = await updateRecord(updateQuery, ['cancelled', bookingId]);
+    const updateResult = await updateRecord(QUERIES.UPDATE_BOOKING_STATUS, ['cancelled', bookingId]);
 
     if (!updateResult.success) {
       return res.status(400).json(formatResponse(false, updateResult.error, null, 400));
     }
 
     // Update room status back to available
-    const updateRoomsQuery = `
-      UPDATE room r
-      JOIN bookingRooms br ON r.RoomID = br.RoomID
-      SET r.Status = 'available'
-      WHERE br.BookingID = ?
-    `;
-    
-    const roomUpdateResult = await updateRecord(updateRoomsQuery, [bookingId]);
+    const roomUpdateResult = await updateRecord(QUERIES.UPDATE_ROOM_STATUS, ['available', bookingId]);
     
     if (!roomUpdateResult.success) {
       console.error('Failed to update room status:', roomUpdateResult.error);
