@@ -18,7 +18,7 @@ const QUERIES = {
     FROM booking b
     JOIN bookingRooms br ON b.BookingID = br.BookingID
     WHERE br.RoomID = ? 
-    AND b.BookingStatus IN ('booked', 'checked-in')
+    AND b.BookingStatus IN ('confirmed', 'checked-in')
     AND b.CheckOutDate > ? 
     AND b.CheckInDate < ?
   `,
@@ -51,14 +51,29 @@ const QUERIES = {
 // Get available rooms for booking (check date conflicts)
 const getAvailableRooms = async (req, res) => {
   try {
-    const { checkInDate, checkOutDate, roomTypeId } = req.query;
+    const { checkInDate, checkOutDate, room_Type } = req.query;
     const branchId = req.user.BranchID;
 
     if (!checkInDate || !checkOutDate) {
       return res.status(400).json(formatResponse(false, 'Check-in and check-out dates are required', null, 400));
     }
 
-    // Base query to get rooms (don't filter by status - we'll check booking conflicts instead)
+    let roomTypeId = '';
+
+    if (room_Type){
+      let getType = `
+      SELECT RoomTypeID
+      FROM roomType
+      WHERE TypeName = ?
+    `;
+    const roomTyperesult = await findOne(getType, [room_Type]);
+
+    if (!roomTyperesult.success || !roomTyperesult.data) {
+      return res.status(404).json(formatResponse(false, 'RoomType not found', null, 404));
+    }
+    roomTypeId = roomTyperesult.data.RoomTypeID;
+    }
+
     let query = `
       SELECT r.RoomID, r.RoomNumber, r.Status, r.BranchID,
              rt.RoomTypeID, rt.TypeName, rt.Capacity, rt.DailyRate, rt.Amenities
@@ -248,7 +263,7 @@ const createBooking = async (req, res) => {
     // Create booking
     const bookingQuery = `
       INSERT INTO booking (GuestID, CheckInDate, CheckOutDate, BookingStatus)
-      VALUES (?, ?, ?, 'booked')
+      VALUES (?, ?, ?, 'confirmed')
     `;
     
     const bookingResult = await insertRecord(bookingQuery, [guestId, checkInDate, checkOutDate]);
@@ -283,11 +298,13 @@ const getBookings = async (req, res) => {
 
     const query = `
       SELECT DISTINCT b.BookingID, b.CheckInDate, b.CheckOutDate, b.BookingStatus,
-             g.GuestID, g.Name as GuestName, g.Email as GuestEmail, g.Phone as GuestPhone
+             g.GuestID, g.Name as GuestName, g.Email as GuestEmail, g.Phone as GuestPhone,
+             bill.BillID, bill.BillStatus, bill.TotalAmount
       FROM booking b
       JOIN guest g ON b.GuestID = g.GuestID
       JOIN bookingRooms br ON b.BookingID = br.BookingID
       JOIN room r ON br.RoomID = r.RoomID
+      LEFT JOIN bill ON b.BookingID = bill.BookingID
       WHERE r.BranchID = ?
       ORDER BY b.CheckInDate DESC
     `;
@@ -298,10 +315,22 @@ const getBookings = async (req, res) => {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve bookings', null, 500));
     }
 
-    // Get room details for each booking
+    // Get room details and payment info for each booking
     for (let booking of result.data) {
       const roomsResult = await findMany(QUERIES.ROOM_DETAILS_BY_BOOKING, [booking.BookingID]);
       booking.rooms = roomsResult.success ? roomsResult.data : [];
+      
+      // If bill exists, get payment information
+      if (booking.BillID) {
+        const paymentQuery = `
+          SELECT COALESCE(SUM(Amount), 0) as TotalPaid
+          FROM payment
+          WHERE BillID = ? AND PaymentStatus = 'completed'
+        `;
+        const paymentResult = await findOne(paymentQuery, [booking.BillID]);
+        booking.TotalPaid = paymentResult.success ? parseFloat(paymentResult.data.TotalPaid) : 0;
+        booking.RemainingAmount = booking.TotalAmount ? parseFloat(booking.TotalAmount) - booking.TotalPaid : 0;
+      }
     }
 
     res.json(formatResponse(true, 'Bookings retrieved successfully', result.data));
@@ -609,8 +638,8 @@ const checkInBooking = async (req, res) => {
 
     const booking = bookingResult.data;
 
-    // Validation: booking must be 'booked' status
-    if (booking.BookingStatus !== 'booked') {
+    // Validation: booking must be 'confirmed' status
+    if (booking.BookingStatus !== 'confirmed') {
       return res.status(400).json(formatResponse(false, `Cannot check-in booking with status: ${booking.BookingStatus}`, null, 400));
     }
 
@@ -658,6 +687,41 @@ const checkOutBooking = async (req, res) => {
     // Validation: booking must be 'checked-in' status
     if (booking.BookingStatus !== 'checked-in') {
       return res.status(400).json(formatResponse(false, `Cannot check-out booking with status: ${booking.BookingStatus}`, null, 400));
+    }
+
+    // Check if bill exists and is fully paid
+    const billQuery = `
+      SELECT bill.BillID, bill.BillStatus, bill.TotalAmount,
+             COALESCE(SUM(payment.Amount), 0) as TotalPaid
+      FROM bill
+      LEFT JOIN payment ON bill.BillID = payment.BillID 
+        AND payment.PaymentStatus = 'completed'
+      WHERE bill.BookingID = ?
+      GROUP BY bill.BillID, bill.BillStatus, bill.TotalAmount
+    `;
+    
+    const billResult = await findOne(billQuery, [bookingId]);
+    
+    if (billResult.success && billResult.data) {
+      const bill = billResult.data;
+      const totalPaid = parseFloat(bill.TotalPaid) || 0;
+      const totalAmount = parseFloat(bill.TotalAmount) || 0;
+      
+      // Check if bill is fully paid
+      if (totalPaid < totalAmount) {
+        const remaining = totalAmount - totalPaid;
+        return res.status(400).json(formatResponse(
+          false, 
+          `Cannot check-out: Bill not fully paid. Remaining amount: $${remaining.toFixed(2)}`, 
+          { 
+            billStatus: bill.BillStatus,
+            totalAmount: totalAmount.toFixed(2),
+            totalPaid: totalPaid.toFixed(2),
+            remainingAmount: remaining.toFixed(2)
+          }, 
+          400
+        ));
+      }
     }
 
     // Update booking status to checked-out

@@ -125,7 +125,7 @@ const BookingOperations = () => {
   // Get status color
   const getStatusColor = (status) => {
     switch (status) {
-      case 'booked':
+      case 'confirmed':
         return 'bg-blue-100 text-blue-800';
       case 'checked-in':
         return 'bg-green-100 text-green-800';
@@ -136,25 +136,110 @@ const BookingOperations = () => {
     }
   };
 
-  // Get appropriate action button
+  // Get appropriate action buttons - always show both Check In and Check Out buttons
   const getActionButton = (booking) => {
     const isProcessing = processingId === booking.BookingID;
+    const isBooked = booking.BookingStatus === 'confirmed';
+    const isCheckedIn = booking.BookingStatus === 'checked-in';
+    const isCheckedOut = booking.BookingStatus === 'checked-out';
+    const isCancelled = booking.BookingStatus === 'cancelled';
+    
+    // Check if bill exists and is fully paid
+    const hasBill = booking.BillID != null;
+    const billPaid = booking.BillStatus === 'paid';
+    const remainingAmount = booking.RemainingAmount || 0;
+    const canCheckout = isCheckedIn && (!hasBill || billPaid);
 
-    if (booking.BookingStatus === 'booked') {
+    // For cancelled bookings, show status only
+    if (isCancelled) {
       return (
+        <span className="flex items-center space-x-1 text-sm text-red-500">
+          <XCircle className="h-4 w-4" />
+          <span>Cancelled</span>
+        </span>
+      );
+    }
+
+    // For checked-out bookings, show completed status
+    if (isCheckedOut) {
+      return (
+        <div className="flex flex-col items-end space-y-2">
+          <span className="flex items-center space-x-1 text-sm text-gray-500">
+            <CheckCircle className="h-4 w-4" />
+            <span>Completed</span>
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              disabled={true}
+              className="px-3 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm flex items-center space-x-1 cursor-not-allowed opacity-50"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Check In</span>
+            </button>
+            <button
+              disabled={true}
+              className="px-3 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm flex items-center space-x-1 cursor-not-allowed opacity-50"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Check Out</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // For active bookings (confirmed or checked-in), show both buttons
+    return (
+      <div className="flex flex-col items-end space-y-2">
+        {/* Bill payment warning for checked-in guests */}
+        {isCheckedIn && hasBill && !billPaid && (
+          <div className="text-xs text-orange-600 font-medium flex items-center space-x-1 mb-1">
+            <AlertCircle className="h-3 w-3" />
+            <span>Bill not fully paid: ${remainingAmount.toFixed(2)} remaining</span>
+          </div>
+        )}
+        
         <div className="flex items-center space-x-2">
+          {/* Check In Button - enabled only when status is 'confirmed' */}
           <button
             onClick={() => handleCheckIn(booking.BookingID, booking.GuestName)}
-            disabled={isProcessing}
-            className="btn-primary text-sm flex items-center space-x-2"
+            disabled={!isBooked || isProcessing}
+            className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-1 transition-colors ${
+              isBooked && !isProcessing
+                ? 'bg-green-500 text-white hover:bg-green-600'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+            }`}
           >
-            {isProcessing ? (
+            {isProcessing && isBooked ? (
               <Loader className="h-4 w-4 animate-spin" />
             ) : (
               <LogIn className="h-4 w-4" />
             )}
             <span>Check In</span>
           </button>
+
+          {/* Check Out Button - enabled only when status is 'checked-in' AND bill is paid */}
+          <button
+            onClick={() => handleCheckOut(booking.BookingID, booking.GuestName)}
+            disabled={!canCheckout || isProcessing}
+            className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-1 transition-colors ${
+              canCheckout && !isProcessing
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+            }`}
+            title={isCheckedIn && hasBill && !billPaid ? `Bill not fully paid. Remaining: $${remainingAmount.toFixed(2)}` : ''}
+          >
+            {isProcessing && isCheckedIn ? (
+              <Loader className="h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4" />
+            )}
+            <span>Check Out</span>
+          </button>
+        </div>
+
+        {/* Cancel button only for 'confirmed' status */}
+        {isBooked && (
           <button
             onClick={() => handleCancelBooking(booking.BookingID, booking.GuestName)}
             disabled={isProcessing}
@@ -165,54 +250,17 @@ const BookingOperations = () => {
             ) : (
               <XCircle className="h-4 w-4" />
             )}
-            <span>Cancel</span>
+            <span>Cancel Booking</span>
           </button>
-        </div>
-      );
-    }
-
-    if (booking.BookingStatus === 'checked-in') {
-      return (
-        <button
-          onClick={() => handleCheckOut(booking.BookingID, booking.GuestName)}
-          disabled={isProcessing}
-          className="btn-secondary text-sm flex items-center space-x-2"
-        >
-          {isProcessing ? (
-            <Loader className="h-4 w-4 animate-spin" />
-          ) : (
-            <LogOut className="h-4 w-4" />
-          )}
-          <span>Check Out</span>
-        </button>
-      );
-    }
-
-    if (booking.BookingStatus === 'checked-out') {
-      return (
-        <span className="flex items-center space-x-1 text-sm text-gray-500">
-          <CheckCircle className="h-4 w-4" />
-          <span>Completed</span>
-        </span>
-      );
-    }
-
-    if (booking.BookingStatus === 'cancelled') {
-      return (
-        <span className="flex items-center space-x-1 text-sm text-red-500">
-          <XCircle className="h-4 w-4" />
-          <span>Cancelled</span>
-        </span>
-      );
-    }
-
-    return null;
+        )}
+      </div>
+    );
   };
 
   // Calculate stats
   const stats = {
     total: bookings.length,
-    booked: bookings.filter(b => b.BookingStatus === 'booked').length,
+    confirmed: bookings.filter(b => b.BookingStatus === 'confirmed').length,
     checkedIn: bookings.filter(b => b.BookingStatus === 'checked-in').length,
     checkedOut: bookings.filter(b => b.BookingStatus === 'checked-out').length
   };
@@ -253,7 +301,7 @@ const BookingOperations = () => {
           </div>
           <div className="card text-center">
             <Clock className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-gray-900">{stats.booked}</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.confirmed}</p>
             <p className="text-sm text-gray-600">Ready for Check-in</p>
           </div>
           <div className="card text-center">
@@ -295,14 +343,14 @@ const BookingOperations = () => {
               All ({stats.total})
             </button>
             <button
-              onClick={() => setStatusFilter('booked')}
+              onClick={() => setStatusFilter('confirmed')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === 'booked'
+                statusFilter === 'confirmed'
                   ? 'bg-orange-100 text-orange-700 border border-orange-300'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Ready for Check-in ({stats.booked})
+              Ready for Check-in ({stats.confirmed})
             </button>
             <button
               onClick={() => setStatusFilter('checked-in')}
