@@ -107,7 +107,7 @@ const AdminDashboard = () => {
   if (isLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-32 sm:h-64">
           <div className="text-center">
             <div className="spinner mx-auto mb-4"></div>
             <p className="text-gray-600">Loading dashboard...</p>
@@ -119,14 +119,14 @@ const AdminDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
               Welcome back, {user?.Name}!
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Here's what's happening at your hotel branch today.
             </p>
           </div>
@@ -137,18 +137,18 @@ const AdminDashboard = () => {
         </div>
 
         {/* Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {statsCards.map((card, index) => {
             const Icon = card.icon;
             return (
               <div key={index} className="card hover:shadow-lg transition-shadow">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">{card.title}</p>
-                    <p className="text-2xl font-bold text-gray-900">{card.value}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-600 mb-1 truncate">{card.title}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">{card.value}</p>
                   </div>
-                  <div className={`p-3 rounded-full ${card.bgColor}`}>
-                    <Icon className={`h-6 w-6 ${card.textColor}`} />
+                  <div className={`p-2 sm:p-3 rounded-full ${card.bgColor} flex-shrink-0 ml-3`}>
+                    <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${card.textColor}`} />
                   </div>
                 </div>
               </div>
@@ -157,7 +157,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Room Occupancy Overview */}
           <div className="card">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">

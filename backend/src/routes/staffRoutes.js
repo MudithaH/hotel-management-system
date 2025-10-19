@@ -9,6 +9,7 @@ const {
   getAvailableRooms,
   createGuest,
   getGuests,
+  updateGuest,
   createBooking,
   getBookings,
   checkInBooking,
@@ -37,6 +38,9 @@ router.post('/guests', createGuest);
 
 // GET /api/staff/guests
 router.get('/guests', getGuests);
+
+// PUT /api/staff/guests/:guestId
+router.put('/guests/:guestId', updateGuest);
 
 // Booking management routes
 // @route   POST /api/staff/bookings
