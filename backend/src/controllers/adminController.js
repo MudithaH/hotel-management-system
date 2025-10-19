@@ -6,6 +6,21 @@
 const { findMany, findOne, insertRecord, updateRecord, deleteRecord } = require('../config/db');
 const { hashPassword, formatResponse, isValidEmail, isValidPhone } = require('../utils/helpers');
 
+// Common SQL queries
+const QUERIES = {
+  CHECK_STAFF_IN_BRANCH: 'SELECT StaffID FROM staff WHERE StaffID = ? AND BranchID = ?',
+  DELETE_STAFF: 'DELETE FROM staff WHERE StaffID = ?',
+  GET_ROOM_TYPES: 'SELECT * FROM roomType ORDER BY TypeName',
+  GET_DESIGNATIONS: 'SELECT * FROM designation ORDER BY Designation',
+  GET_BRANCHES: 'SELECT BranchID, City, Address FROM hotelBranch ORDER BY City',
+  // Stored procedure calls
+  CALL_ROOM_OCCUPANCY_REPORT: 'CALL GetRoomOccupancyReport(?, ?, ?)',
+  CALL_GUEST_BILLING_SUMMARY: 'CALL GetGuestBillingSummary(?, ?, ?)',
+  CALL_SERVICE_USAGE_REPORT: 'CALL GetServiceUsageReport(?, ?, ?)',
+  CALL_MONTHLY_REVENUE_REPORT: 'CALL GetMonthlyRevenueReport(?, ?)',
+  CALL_TOP_SERVICES_REPORT: 'CALL GetTopServicesReport(?, ?, ?, ?)'
+};
+
 // Get dashboard overview stats
 const getDashboardStats = async (req, res) => {
   try {
@@ -148,8 +163,7 @@ const updateStaff = async (req, res) => {
     const branchId = req.user.BranchID;
 
     // Verify staff belongs to same branch
-    const checkQuery = 'SELECT StaffID FROM staff WHERE StaffID = ? AND BranchID = ?';
-    const checkResult = await findOne(checkQuery, [staffId, branchId]);
+    const checkResult = await findOne(QUERIES.CHECK_STAFF_IN_BRANCH, [staffId, branchId]);
 
     if (!checkResult.success || !checkResult.data) {
       return res.status(404).json(formatResponse(false, 'Staff member not found', null, 404));
@@ -202,8 +216,7 @@ const deleteStaff = async (req, res) => {
     const branchId = req.user.BranchID;
 
     // Verify staff belongs to same branch and is not the current user
-    const checkQuery = 'SELECT StaffID FROM staff WHERE StaffID = ? AND BranchID = ?';
-    const checkResult = await findOne(checkQuery, [staffId, branchId]);
+    const checkResult = await findOne(QUERIES.CHECK_STAFF_IN_BRANCH, [staffId, branchId]);
 
     if (!checkResult.success || !checkResult.data) {
       return res.status(404).json(formatResponse(false, 'Staff member not found', null, 404));
@@ -213,8 +226,7 @@ const deleteStaff = async (req, res) => {
       return res.status(400).json(formatResponse(false, 'Cannot delete your own account', null, 400));
     }
 
-    const query = 'DELETE FROM staff WHERE StaffID = ?';
-    const result = await deleteRecord(query, [staffId]);
+    const result = await deleteRecord(QUERIES.DELETE_STAFF, [staffId]);
 
     if (!result.success) {
       return res.status(400).json(formatResponse(false, result.error, null, 400));
@@ -259,8 +271,7 @@ const getRooms = async (req, res) => {
 // Get all room types
 const getRoomTypes = async (req, res) => {
   try {
-    const query = 'SELECT * FROM roomType ORDER BY TypeName';
-    const result = await findMany(query);
+    const result = await findMany(QUERIES.GET_ROOM_TYPES);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve room types', null, 500));
@@ -277,8 +288,7 @@ const getRoomTypes = async (req, res) => {
 // Get all designations
 const getDesignations = async (req, res) => {
   try {
-    const query = 'SELECT * FROM designation ORDER BY Designation';
-    const result = await findMany(query);
+    const result = await findMany(QUERIES.GET_DESIGNATIONS);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve designations', null, 500));
@@ -310,8 +320,7 @@ const getRoomOccupancyReport = async (req, res) => {
       return res.status(400).json(formatResponse(false, 'Start date and end date are required', null, 400));
     }
 
-    const query = 'CALL GetRoomOccupancyReport(?, ?, ?)';
-    const result = await findMany(query, [startDate, endDate, targetBranchId]);
+    const result = await findMany(QUERIES.CALL_ROOM_OCCUPANCY_REPORT, [startDate, endDate, targetBranchId]);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve room occupancy report', null, 500));
@@ -332,8 +341,7 @@ const getGuestBillingSummary = async (req, res) => {
     // Enforce branch-scoped reports: ignore any branchId supplied by client
     const targetBranchId = userBranchId;
 
-    const query = 'CALL GetGuestBillingSummary(?, ?, ?)';
-    const result = await findMany(query, [targetBranchId, startDate || null, endDate || null]);
+    const result = await findMany(QUERIES.CALL_GUEST_BILLING_SUMMARY, [targetBranchId, startDate || null, endDate || null]);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve guest billing summary', null, 500));
@@ -354,8 +362,7 @@ const getServiceUsageReport = async (req, res) => {
     // Enforce branch-scoped reports: ignore any branchId supplied by client
     const targetBranchId = userBranchId;
 
-    const query = 'CALL GetServiceUsageReport(?, ?, ?)';
-    const result = await findMany(query, [targetBranchId, startDate || null, endDate || null]);
+    const result = await findMany(QUERIES.CALL_SERVICE_USAGE_REPORT, [targetBranchId, startDate || null, endDate || null]);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve service usage report', null, 500));
@@ -377,8 +384,7 @@ const getMonthlyRevenueReport = async (req, res) => {
     const targetBranchId = userBranchId;
     const targetYear = year || new Date().getFullYear();
 
-    const query = 'CALL GetMonthlyRevenueReport(?, ?)';
-    const result = await findMany(query, [targetYear, targetBranchId]);
+    const result = await findMany(QUERIES.CALL_MONTHLY_REVENUE_REPORT, [targetYear, targetBranchId]);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve monthly revenue report', null, 500));
@@ -406,8 +412,7 @@ const getTopServicesReport = async (req, res) => {
     const startDateParam = startDate && startDate.trim() !== '' ? startDate : null;
     const endDateParam = endDate && endDate.trim() !== '' ? endDate : null;
 
-    const query = 'CALL GetTopServicesReport(?, ?, ?, ?)';
-    const result = await findMany(query, [targetBranchId, startDateParam, endDateParam, resultLimit]);
+    const result = await findMany(QUERIES.CALL_TOP_SERVICES_REPORT, [targetBranchId, startDateParam, endDateParam, resultLimit]);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve top services report', null, 500));
@@ -421,11 +426,10 @@ const getTopServicesReport = async (req, res) => {
   }
 };
 
-// Get all branches (for report filtering)
+// Get all branches
 const getBranches = async (req, res) => {
   try {
-    const query = 'SELECT BranchID, City, Address FROM hotelBranch ORDER BY City';
-    const result = await findMany(query);
+    const result = await findMany(QUERIES.GET_BRANCHES);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve branches', null, 500));
