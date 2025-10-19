@@ -1,3 +1,5 @@
+-- run this file only after running seed.js
+
 -- =============================================
 -- AUDIT TRIGGERS FOR HOTEL MANAGEMENT SYSTEM
 -- =============================================
