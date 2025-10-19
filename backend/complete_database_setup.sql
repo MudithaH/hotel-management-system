@@ -1,11 +1,4 @@
--- Hotel Management System - Complete Database Setup
--- This file contains only the stored procedures that are actually used by the backend
-
 USE hotel_management;
-
--- =============================================
--- REPORT STORED PROCEDURES
--- =============================================
 
 DELIMITER //
 CREATE PROCEDURE GetRoomOccupancyReport(
@@ -215,24 +208,26 @@ BEGIN
         sc.ServiceID,
         sc.ServiceName,
         sc.Price as BasePrice,
-        COUNT(su.UsageID) as TotalUsages,
-        SUM(su.Quantity) as TotalQuantity,
-        COUNT(DISTINCT su.BookingID) as UniqueBookings,
-        COUNT(DISTINCT g.GuestID) as UniqueGuests,
-        SUM(su.Quantity * su.PriceAtUsage) as TotalRevenue,
-        AVG(su.PriceAtUsage) as AveragePrice,
-        (COUNT(su.UsageID) * 100.0 / 
-            (SELECT COUNT(*) FROM serviceUsage su2 
-             JOIN booking bk2 ON su2.BookingID = bk2.BookingID
-             JOIN bookingRooms br2 ON bk2.BookingID = br2.BookingID
-             JOIN room r2 ON br2.RoomID = r2.RoomID
-             WHERE (p_branch_id IS NULL OR r2.BranchID = p_branch_id)
-             AND (p_start_date IS NULL OR su2.UsageDate >= p_start_date)
-             AND (p_end_date IS NULL OR su2.UsageDate <= p_end_date)
-            )
+        COALESCE(COUNT(su.UsageID), 0) as TotalUsages,
+        COALESCE(SUM(su.Quantity), 0) as TotalQuantity,
+        COALESCE(COUNT(DISTINCT su.BookingID), 0) as UniqueBookings,
+        COALESCE(COUNT(DISTINCT g.GuestID), 0) as UniqueGuests,
+        COALESCE(SUM(su.Quantity * su.PriceAtUsage), 0) as TotalRevenue,
+        COALESCE(AVG(su.PriceAtUsage), sc.Price) as AveragePrice,
+        COALESCE(
+            (COUNT(su.UsageID) * 100.0 / 
+                NULLIF((SELECT COUNT(*) FROM serviceUsage su2 
+                 JOIN booking bk2 ON su2.BookingID = bk2.BookingID
+                 JOIN bookingRooms br2 ON bk2.BookingID = br2.BookingID
+                 JOIN room r2 ON br2.RoomID = r2.RoomID
+                 WHERE (p_branch_id IS NULL OR r2.BranchID = p_branch_id)
+                 AND (p_start_date IS NULL OR su2.UsageDate >= p_start_date)
+                 AND (p_end_date IS NULL OR su2.UsageDate <= p_end_date)
+                ), 0)
+            ), 0
         ) as UsagePercentage,
         CASE 
-            WHEN COUNT(su.UsageID) >= (
+            WHEN COALESCE(COUNT(su.UsageID), 0) >= COALESCE((
                 SELECT AVG(service_count) * 2 
                 FROM (
                     SELECT COUNT(su3.UsageID) as service_count
@@ -245,8 +240,8 @@ BEGIN
                     AND (p_end_date IS NULL OR su3.UsageDate <= p_end_date)
                     GROUP BY su3.ServiceID
                 ) as avg_calc
-            ) THEN 'High Demand'
-            WHEN COUNT(su.UsageID) >= (
+            ), 0) THEN 'High Demand'
+            WHEN COALESCE(COUNT(su.UsageID), 0) >= COALESCE((
                 SELECT AVG(service_count) 
                 FROM (
                     SELECT COUNT(su3.UsageID) as service_count
@@ -259,7 +254,7 @@ BEGIN
                     AND (p_end_date IS NULL OR su3.UsageDate <= p_end_date)
                     GROUP BY su3.ServiceID
                 ) as avg_calc
-            ) THEN 'Medium Demand'
+            ), 0) THEN 'Medium Demand'
             ELSE 'Low Demand'
         END as DemandLevel
     FROM serviceCatalogue sc
@@ -272,14 +267,12 @@ BEGIN
     AND (p_start_date IS NULL OR su.UsageDate >= p_start_date OR su.UsageID IS NULL)
     AND (p_end_date IS NULL OR su.UsageDate <= p_end_date OR su.UsageID IS NULL)
     GROUP BY sc.ServiceID, sc.ServiceName, sc.Price
-    ORDER BY TotalUsages DESC, TotalRevenue DESC
+    ORDER BY COALESCE(COUNT(su.UsageID), 0) DESC, COALESCE(SUM(su.Quantity * su.PriceAtUsage), 0) DESC
     LIMIT v_limit;
 END //
 DELIMITER ;
 
--- =============================================
--- PERFORMANCE INDEXES (Essential Only)
--- =============================================
+-- PERFORMANCE INDEXES 
 
 CREATE INDEX idx_bill_date ON bill(BillDate);
 CREATE INDEX idx_booking_dates ON booking(CheckInDate, CheckOutDate);

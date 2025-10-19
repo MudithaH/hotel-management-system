@@ -148,6 +148,59 @@ const getGuests = async (req, res) => {
   }
 };
 
+// Update guest information
+const updateGuest = async (req, res) => {
+  try {
+    const { guestId } = req.params;
+    const { name, email, phone } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone) {
+      return res.status(400).json(formatResponse(false, 'Name, email, and phone are required', null, 400));
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json(formatResponse(false, 'Invalid email format', null, 400));
+    }
+
+    // Check if guest exists
+    const checkQuery = 'SELECT GuestID FROM guest WHERE GuestID = ?';
+    const checkResult = await findOne(checkQuery, [guestId]);
+
+    if (!checkResult.success || !checkResult.data) {
+      return res.status(404).json(formatResponse(false, 'Guest not found', null, 404));
+    }
+
+    // Check if email is already taken by another guest
+    const emailCheckQuery = 'SELECT GuestID FROM guest WHERE Email = ? AND GuestID != ?';
+    const emailCheckResult = await findOne(emailCheckQuery, [email, guestId]);
+
+    if (emailCheckResult.success && emailCheckResult.data) {
+      return res.status(400).json(formatResponse(false, 'Email is already registered to another guest', null, 400));
+    }
+
+  // Update guest information
+  const updateQuery = 'UPDATE guest SET Name = ?, Email = ?, Phone = ? WHERE GuestID = ?';
+  // use updateRecord helper (wrapped DB call) instead of undefined executeQuery
+  const result = await updateRecord(updateQuery, [name, email, phone, guestId]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to update guest', null, 500));
+    }
+
+    // Log the update action
+    await logAudit(req.user.StaffID, 'guest', `UPDATE - GuestID: ${guestId}`);
+
+    res.json(formatResponse(true, 'Guest updated successfully', { guestId: parseInt(guestId) }));
+
+  } catch (error) {
+    console.error('Update guest error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to update guest', null, 500));
+  }
+};
+
 // Create new booking
 const createBooking = async (req, res) => {
   try {
@@ -833,6 +886,7 @@ module.exports = {
   getAvailableRooms,
   createGuest,
   getGuests,
+  updateGuest,
   createBooking,
   getBookings,
   checkInBooking,

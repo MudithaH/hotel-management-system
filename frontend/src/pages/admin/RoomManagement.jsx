@@ -296,7 +296,7 @@ const RoomManagement = () => {
           </div>
           
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-mobile">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -322,7 +322,7 @@ const RoomManagement = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredRooms.map((room) => (
                   <tr key={room.RoomID} className="table-row">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2 sm:px-6 sm:py-4" data-label="Room">
                       <div className="flex items-center space-x-3">
                         <div className="p-2 bg-primary-50 rounded-lg">
                           <BedDouble className="h-5 w-5 text-primary-600" />
@@ -335,7 +335,7 @@ const RoomManagement = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2 sm:px-6 sm:py-4" data-label="Type & Capacity">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{room.TypeName}</div>
                         <div className="flex items-center space-x-1 text-sm text-gray-500">
@@ -344,18 +344,18 @@ const RoomManagement = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2 sm:px-6 sm:py-4" data-label="Daily Rate">
                       <div className="text-sm font-medium text-gray-900">
                         {formatCurrency(room.DailyRate)}
                       </div>
                       <div className="text-sm text-gray-500">per night</div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2 sm:px-6 sm:py-4" data-label="Status">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(room.Status)}`}>
                         {room.Status.replace('-', ' ')}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2 sm:px-6 sm:py-4" data-label="Amenities">
                       <div className="flex flex-wrap gap-1">
                         {parseAmenities(room.Amenities).slice(0, 2).map((amenity, index) => (
                           <span
@@ -373,13 +373,13 @@ const RoomManagement = () => {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-2 sm:px-6 sm:py-4 text-right" data-label="Actions">
                       <button
                         onClick={() => handleViewRoom(room)}
                         className="btn-secondary text-sm flex items-center space-x-1 ml-auto"
                       >
                         <Eye className="h-4 w-4" />
-                        <span>View</span>
+                        <span className="hidden sm:inline">View</span>
                       </button>
                     </td>
                   </tr>

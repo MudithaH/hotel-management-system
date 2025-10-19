@@ -87,6 +87,7 @@ export const staffAPI = {
   getAvailableRooms: (params) => api.get('/staff/rooms/available', { params }),
   createGuest: (data) => api.post('/staff/guests', data),
   getGuests: () => api.get('/staff/guests'),
+  updateGuest: (guestId, data) => api.put(`/staff/guests/${guestId}`, data),
   createBooking: (data) => api.post('/staff/bookings', data),
   getBookings: () => api.get('/staff/bookings'),
   checkInBooking: (bookingId) => api.put(`/staff/bookings/${bookingId}/checkin`),
