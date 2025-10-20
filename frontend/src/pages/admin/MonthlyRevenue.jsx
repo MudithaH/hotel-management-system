@@ -98,10 +98,7 @@ import toast from 'react-hot-toast';
     }
   };
 
-  // Load initial data
-  useEffect(() => {
-    fetchReport();
-  }, []);
+  
 
   // Handle filter changes
   const handleFilterChange = (field, value) => {
