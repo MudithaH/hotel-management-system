@@ -1,9 +1,31 @@
 const mysql = require('mysql2/promise');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
+
+// SSL Configuration for Aiven
+let sslConfig = false;
+if (process.env.DB_SSL === 'true') {
+  const caPath = path.join(__dirname, '../../certs/ca.pem');
+  
+  // Check if CA certificate exists
+  if (fs.existsSync(caPath)) {
+    console.log('Using CA certificate for SSL connection');
+    sslConfig = {
+      ca: fs.readFileSync(caPath),
+      rejectUnauthorized: true
+    };
+  } else {
+    console.warn('CA certificate not found, using rejectUnauthorized: false');
+    sslConfig = {
+      rejectUnauthorized: false
+    };
+  }
+}
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 3306,
+  port: parseInt(process.env.DB_PORT) || 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || 'hotel_management',
@@ -12,21 +34,45 @@ const pool = mysql.createPool({
   queueLimit: 0,
   multipleStatements: true,
   charset: 'utf8mb4',
-  // SSL configuration for Aiven and other cloud databases
-  ssl: process.env.DB_SSL === 'true' ? {
-    rejectUnauthorized: false  // Set to false for Aiven with self-signed certs
-  } : false
+  connectTimeout: 30000, // 30 seconds timeout
+  ssl: sslConfig
 });
 
 const testConnection = async () => {
   try {
+    console.log('Testing database connection...');
+    console.log(`Host: ${process.env.DB_HOST}`);
+    console.log(`Port: ${process.env.DB_PORT}`);
+    console.log(`Database: ${process.env.DB_NAME}`);
+    console.log(`User: ${process.env.DB_USER}`);
+    console.log(`SSL: ${process.env.DB_SSL}`);
+    
     const connection = await pool.getConnection();
+    console.log('✓ Successfully connected to database');
+    
     await connection.execute("SET sql_mode = REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', '')");
-    console.log('Database connected successfully');
+    console.log('✓ SQL mode configured');
+    
     connection.release();
     return true;
   } catch (error) {
-    console.error('Database connection failed:', error.message);
+    console.error('✗ Database connection failed:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error errno:', error.errno);
+    
+    // Provide helpful error messages
+    if (error.code === 'ECONNREFUSED') {
+      console.error('→ Connection refused. Check if the host and port are correct.');
+    } else if (error.code === 'ER_ACCESS_DENIED_ERROR') {
+      console.error('→ Access denied. Check your username and password.');
+    } else if (error.code === 'ENOTFOUND') {
+      console.error('→ Host not found. Check your DB_HOST setting.');
+    } else if (error.code === 'ETIMEDOUT') {
+      console.error('→ Connection timeout. Check your firewall or network settings.');
+    } else if (error.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') {
+      console.error('→ SSL certificate verification failed. Download the CA certificate from Aiven.');
+    }
+    
     return false;
   }
 };
