@@ -1,38 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 660">
-  <!-- Background -->
-  <rect width="800" height="660" fill="#0a2647"/>
-  
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" width="1000" height="1000">
   <!-- Decorative circular pattern with S -->
-  <g transform="translate(400, 200)">
+  <g transform="translate(520, 250)">
     <!-- Outer circle -->
-    <circle cx="0" cy="0" r="90" fill="none" stroke="#7db9e8" stroke-width="3"/>
+    <circle cx="0" cy="0" r="320" fill="none" stroke="#0a2647" stroke-width="30"/>
     
     <!-- Inner decorative petals -->
-    <g fill="none" stroke="#7db9e8" stroke-width="2.5">
+    <g fill="none" stroke="#0a2647" stroke-width="30">
       <!-- 8 petals around -->
-      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(0)"/>
-      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(45)"/>
-      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(90)"/>
-      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(135)"/>
-      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(180)"/>
-      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(225)"/>
-      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(270)"/>
-      <ellipse cx="0" cy="-65" rx="15" ry="25" transform="rotate(315)"/>
+      <ellipse cx="0" cy="-220" rx="45" ry="80" transform="rotate(0)"/>
+      <ellipse cx="0" cy="-220" rx="45" ry="80" transform="rotate(45)"/>
+      <ellipse cx="0" cy="-220" rx="45" ry="80" transform="rotate(90)"/>
+      <ellipse cx="0" cy="-220" rx="45" ry="80" transform="rotate(135)"/>
+      <ellipse cx="0" cy="-220" rx="45" ry="80" transform="rotate(180)"/>
+      <ellipse cx="0" cy="-220" rx="45" ry="80" transform="rotate(225)"/>
+      <ellipse cx="0" cy="-220" rx="45" ry="80" transform="rotate(270)"/>
+      <ellipse cx="0" cy="-220" rx="45" ry="80" transform="rotate(315)"/>
     </g>
     
     <!-- Inner circle -->
-    <circle cx="0" cy="0" r="50" fill="none" stroke="#7db9e8" stroke-width="2.5"/>
+    <circle cx="0" cy="0" r="150" fill="none" stroke="#0a2647" stroke-width="30"/>
     
     <!-- S letter in center -->
-    <text x="0" y="20" font-family="Arial, sans-serif" font-size="70" font-weight="bold" 
-          fill="#7db9e8" text-anchor="middle">S</text>
+    <text x="0" y="80" font-family="Arial, sans-serif" font-size="250" font-weight="1000" 
+          fill="#0a2647" text-anchor="middle">S</text>
   </g>
   
   <!-- SKYNEST text -->
-  <text x="400" y="420" font-family="Arial, sans-serif" font-size="80" font-weight="bold" 
-        fill="#7db9e8" text-anchor="middle" letter-spacing="8">SKYNEST</text>
+  <text x="520" y="750" font-family="Arial, sans-serif" font-size="150" font-weight="1000" 
+        fill="#0a2647" text-anchor="middle" letter-spacing="10">SKYNEST</text>
   
   <!-- BEYOND THE SKY tagline -->
-  <text x="400" y="480" font-family="Arial, sans-serif" font-size="28" font-weight="300" 
-        fill="#7db9e8" text-anchor="middle" letter-spacing="12">BEYOND THE SKY</text>
+  <text x="520" y="850" font-family="Arial, sans-serif" font-size="70" font-weight="1000" 
+        fill="#0a2647" text-anchor="middle" letter-spacing="10">BEYOND THE SKY</text>
 </svg>
+

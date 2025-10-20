@@ -398,7 +398,8 @@ const getTopServicesReport = async (req, res) => {
     const resultLimit = limit ? parseInt(limit) : 10;
 
     const query = 'CALL GetTopServicesReport(?, ?, ?, ?)';
-    const result = await findMany(query, [targetBranchId, startDate, endDate, resultLimit]);
+    console.log('Query Params:', [query,targetBranchId, startDate || null, endDate || null, resultLimit]);
+    const result = await findMany(query, [targetBranchId, startDate || null, endDate || null, resultLimit]);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve top services report', null, 500));
