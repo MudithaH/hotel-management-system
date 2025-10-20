@@ -102,7 +102,6 @@ export const staffAPI = {
   getServices: () => api.get('/staff/services'),
   addServiceUsage: (data) => api.post('/staff/services/usage', data),
   getServiceUsage: (bookingId) => api.get(`/staff/services/usage/${bookingId}`),
-  generateBill: (bookingId, data) => api.post(`/staff/bills/${bookingId}`, data),
   getBills: () => api.get('/staff/bills'),
   processPayment: (data) => api.post('/staff/payments', data)
 };
