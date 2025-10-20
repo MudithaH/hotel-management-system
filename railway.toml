@@ -1,10 +1,8 @@
 # Railway Configuration for Hotel Management System
-# This tells Railway how to build and deploy the application
+# Use NIXPACKS builder since Dockerfile is in backend directory
 
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "./Dockerfile"
-watchPatterns = ["backend/**"]
+builder = "NIXPACKS"
 
 [deploy]
 startCommand = "node src/server.js"
