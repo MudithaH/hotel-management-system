@@ -23,17 +23,20 @@
 
 ## Demo Credentials
 
-### Branch 1
-- Admin: `admin@branch1.com` / `password123`
-- Staff: `sarah@branch1.com` / `password123`
+### Colombo Branch
+- Admin: `admin@colombo.skynest.lk` / `password123`
+- Staff: `sanduni@colombo.skynest.lk` / `password123`
+- Staff: `chamara@colombo.skynest.lk` / `password123`
 
-### Branch 2
-- Admin: `admin@branch2.com` / `password123`
-- Staff: `david@branch2.com` / `password123`
+### Kandy Branch
+- Admin: `admin@kandy.skynest.lk` / `password123`
+- Staff: `tharindu@kandy.skynest.lk` / `password123`
+- Staff: `nadeeka@kandy.skynest.lk` / `password123`
 
-### Branch 3
-- Admin: `admin@branch3.com` / `password123`
-- Staff: `maria@branch3.com` / `password123`
+### Galle Branch
+- Admin: `admin@galle.skynest.lk` / `password123`
+- Staff: `dilini@galle.skynest.lk` / `password123`
+- Staff: `kasun@galle.skynest.lk` / `password123`
 
 ## Environment Setup
 
