@@ -1,7 +1,4 @@
-/**
- * Utility Helper Functions
- * Common functions used across the application
- */
+//Common functions used across the application
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
