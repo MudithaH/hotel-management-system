@@ -289,13 +289,14 @@ BEGIN
     END IF;
 END$$
 
--- Trigger to update bill total amount when payment is made
+-- Trigger to update bill status when payment is made
 CREATE TRIGGER bill_update_after_payment
 AFTER INSERT ON payment
 FOR EACH ROW
-main_block: BEGIN
+BEGIN
     DECLARE v_total_paid DECIMAL(10,2);
     DECLARE v_total_amount DECIMAL(10,2);
+    DECLARE v_new_status VARCHAR(20);
 
     -- Get total amount from bill
     SELECT TotalAmount INTO v_total_amount
@@ -303,36 +304,39 @@ main_block: BEGIN
     WHERE BillID = NEW.BillID;
 
     IF v_total_amount IS NULL THEN
-        -- No bill found; nothing to update
-        LEAVE main_block;
+        -- No bill found; nothing to update (should not happen in normal operation)
+        SET v_total_amount = 0;
     END IF;
 
-    -- Calculate total paid
+    -- Calculate total paid for this bill
     SELECT COALESCE(SUM(Amount), 0) INTO v_total_paid
     FROM payment
     WHERE BillID = NEW.BillID
       AND PaymentStatus = 'completed';
 
-    -- Update bill status
+    -- Determine new bill status
     IF v_total_paid >= v_total_amount THEN
-        UPDATE bill
-        SET BillStatus = 'paid'
-        WHERE BillID = NEW.BillID;
+        SET v_new_status = 'paid';
+    ELSEIF v_total_paid > 0 THEN
+        SET v_new_status = 'partially_paid';
     ELSE
-        UPDATE bill
-        SET BillStatus = 'partially_paid'
-        WHERE BillID = NEW.BillID;
+        SET v_new_status = 'pending';
     END IF;
+
+    -- Update bill status
+    UPDATE bill
+    SET BillStatus = v_new_status
+    WHERE BillID = NEW.BillID;
 
     -- Audit log
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
     VALUES (@current_staff_id, 'bill',
-        CONCAT('UPDATE BILL AFTER PAYMENT - BillID: ', NEW.BillID,
+        CONCAT('UPDATE BILL STATUS TO ', v_new_status, ' AFTER PAYMENT - BillID: ', NEW.BillID,
                ' - PaymentID: ', NEW.PaymentID,
-               ' - Amount: ', NEW.Amount),
+               ' - Amount: ', NEW.Amount,
+               ' - TotalPaid: ', v_total_paid),
         NOW());
 END$$
-
 
 
 DELIMITER ;
