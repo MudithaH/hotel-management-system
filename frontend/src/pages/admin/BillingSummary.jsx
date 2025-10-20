@@ -70,7 +70,6 @@ const BillingSummary = () => {
         guestsWithOutstanding
       });
 
-      toast.success('Report generated successfully');
     } catch (error) {
       console.error('Failed to fetch billing summary:', error);
       toast.error('Failed to generate report');
@@ -79,10 +78,7 @@ const BillingSummary = () => {
     }
   };
 
-  // Load initial data
-  useEffect(() => {
-    fetchReport();
-  }, []);
+ 
 
   // Handle filter changes
   const handleFilterChange = (field, value) => {
