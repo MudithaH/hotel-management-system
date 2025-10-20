@@ -1,4 +1,11 @@
 USE hotel_management;
+-- Drop existing procedures if they exist
+DROP PROCEDURE IF EXISTS GetRoomOccupancyReport;
+DROP PROCEDURE IF EXISTS GetGuestBillingSummary;
+DROP PROCEDURE IF EXISTS GetServiceUsageReport;
+DROP PROCEDURE IF EXISTS GetMonthlyRevenueReport;
+DROP PROCEDURE IF EXISTS GetTopServicesReport;
+DROP PROCEDURE IF EXISTS update_bill_totals;
 
 DELIMITER //
 CREATE PROCEDURE GetRoomOccupancyReport(
@@ -282,9 +289,10 @@ BEGIN
     DECLARE v_discount DECIMAL(10,2);
     DECLARE v_tax DECIMAL(10,2);
     DECLARE v_total_amount DECIMAL(10,2);
+    DECLARE v_bill_exists INT DEFAULT 0;
 
-    -- Calculate number of days (in case needed)
-    SELECT DATEDIFF(CheckOutDate, CheckInDate)
+    -- Calculate number of days (in case needed). If dates missing, default to 0 days.
+    SELECT COALESCE(DATEDIFF(CheckOutDate, CheckInDate), 0)
     INTO v_days
     FROM booking
     WHERE BookingID = p_booking_id;
@@ -303,15 +311,21 @@ BEGIN
     FROM serviceUsage
     WHERE BookingID = p_booking_id;
 
-    -- Get current discount/tax if bill exists
-    SELECT COALESCE(Discount, 0), COALESCE(Tax, 0)
-    INTO v_discount, v_tax
-    FROM bill
-    WHERE BookingID = p_booking_id
-    LIMIT 1;
+    -- Get current discount/tax if bill exists; default to 0 when no bill present
+    SELECT COUNT(*) INTO v_bill_exists FROM bill WHERE BookingID = p_booking_id;
+    IF v_bill_exists > 0 THEN
+        SELECT COALESCE(Discount, 0), COALESCE(Tax, 0)
+        INTO v_discount, v_tax
+        FROM bill
+        WHERE BookingID = p_booking_id
+        LIMIT 1;
+    ELSE
+        SET v_discount = 0;
+        SET v_tax = 0;
+    END IF;
 
-    -- Total
-    SET v_total_amount = v_room_charges + v_service_charges - v_discount + v_tax;
+    -- Total (ensure no NULLs)
+    SET v_total_amount = COALESCE(v_room_charges, 0) + COALESCE(v_service_charges, 0) - COALESCE(v_discount, 0) + COALESCE(v_tax, 0);
 
     -- Insert or update bill
     IF EXISTS (SELECT 1 FROM bill WHERE BookingID = p_booking_id) THEN

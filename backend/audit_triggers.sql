@@ -1,3 +1,4 @@
+USE hotel_management;
 -- run this file only after running seed.js
 
 -- =============================================
@@ -35,6 +36,8 @@ DROP TRIGGER IF EXISTS serviceUsage_after_insert;
 DROP TRIGGER IF EXISTS serviceUsage_after_update;
 DROP TRIGGER IF EXISTS serviceUsage_after_delete;
 DROP TRIGGER IF EXISTS room_after_update;
+DROP TRIGGER IF EXISTS trg_room_occupied;
+DROP TRIGGER IF EXISTS trg_room_available_on_checkout;
 DROP TRIGGER IF EXISTS bill_after_checkin;
 DROP TRIGGER IF EXISTS bill_update_after_service_usage;
 DROP TRIGGER IF EXISTS bill_update_after_payment;
@@ -253,17 +256,22 @@ CREATE TRIGGER bill_after_checkin
 AFTER UPDATE ON booking
 FOR EACH ROW
 BEGIN
+    DECLARE v_bill_id INT;
+    DECLARE v_has_rooms INT DEFAULT 0;
     IF NEW.BookingStatus = 'checked-in' AND OLD.BookingStatus != 'checked-in' THEN
-        CALL update_bill_totals(NEW.BookingID);
-        -- Audit log for bill generation after check-in
-        DECLARE v_bill_id INT;
-        SELECT BillID INTO v_bill_id FROM bill WHERE BookingID = NEW.BookingID;
-        IF v_bill_id IS NOT NULL THEN
-            INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-            VALUES (@current_staff_id, 'bill', CONCAT('GENERATE AFTER CHECKIN - BillID: ', v_bill_id, ' - BookingID: ', NEW.BookingID), NOW());
+        -- Only calculate/update bill if booking has rooms attached
+        SELECT COUNT(*) INTO v_has_rooms FROM bookingRooms WHERE BookingID = NEW.BookingID;
+        IF v_has_rooms > 0 THEN
+            CALL update_bill_totals(NEW.BookingID);
+            -- Audit log for bill generation after check-in
+            SELECT BillID INTO v_bill_id FROM bill WHERE BookingID = NEW.BookingID;
+            IF v_bill_id IS NOT NULL THEN
+                INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
+                VALUES (@current_staff_id, 'bill', CONCAT('GENERATE AFTER CHECKIN - BillID: ', v_bill_id, ' - BookingID: ', NEW.BookingID), NOW());
+            END IF;
         END IF;
     END IF;
-END$$;
+END$$
 
 
 -- Trigger to update bill total amount when service usage is added
@@ -271,37 +279,41 @@ CREATE TRIGGER bill_update_after_service_usage
 AFTER INSERT ON serviceUsage
 FOR EACH ROW
 BEGIN
+    DECLARE v_bill_id INT;
     CALL update_bill_totals(NEW.BookingID);
     -- Audit log for bill update after service usage
-    DECLARE v_bill_id INT;
     SELECT BillID INTO v_bill_id FROM bill WHERE BookingID = NEW.BookingID;
     IF v_bill_id IS NOT NULL THEN
         INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
         VALUES (@current_staff_id, 'bill', CONCAT('UPDATE BILL AFTER SERVICE USAGE - BillID: ', v_bill_id, ' - BookingID: ', NEW.BookingID, ' - UsageID: ', NEW.UsageID), NOW());
     END IF;
-END;
-$$
+END$$
 
 -- Trigger to update bill total amount when payment is made
 CREATE TRIGGER bill_update_after_payment
 AFTER INSERT ON payment
 FOR EACH ROW
-BEGIN
+main_block: BEGIN
     DECLARE v_total_paid DECIMAL(10,2);
     DECLARE v_total_amount DECIMAL(10,2);
-    
+
     -- Get total amount from bill
     SELECT TotalAmount INTO v_total_amount
     FROM bill
     WHERE BillID = NEW.BillID;
-    
+
+    IF v_total_amount IS NULL THEN
+        -- No bill found; nothing to update
+        LEAVE main_block;
+    END IF;
+
     -- Calculate total paid
     SELECT COALESCE(SUM(Amount), 0) INTO v_total_paid
     FROM payment
     WHERE BillID = NEW.BillID
-    AND PaymentStatus = 'completed';
-    
-    -- Update bill status based on payment
+      AND PaymentStatus = 'completed';
+
+    -- Update bill status
     IF v_total_paid >= v_total_amount THEN
         UPDATE bill
         SET BillStatus = 'completed'
@@ -311,10 +323,17 @@ BEGIN
         SET BillStatus = 'partially_paid'
         WHERE BillID = NEW.BillID;
     END IF;
-    -- Audit log for bill update after payment
+
+    -- Audit log
     INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (@current_staff_id, 'bill', CONCAT('UPDATE BILL AFTER PAYMENT - BillID: ', NEW.BillID, ' - PaymentID: ', NEW.PaymentID, ' - Amount: ', NEW.Amount), NOW());
+    VALUES (@current_staff_id, 'bill',
+        CONCAT('UPDATE BILL AFTER PAYMENT - BillID: ', NEW.BillID,
+               ' - PaymentID: ', NEW.PaymentID,
+               ' - Amount: ', NEW.Amount),
+        NOW());
 END$$
+
+
 
 DELIMITER ;
 
