@@ -89,10 +89,7 @@ const ServiceUsageReport = () => {
     }
   };
 
-  // Load initial data
-  useEffect(() => {
-    fetchReport();
-  }, []);
+  
 
   // Handle filter changes
   const handleFilterChange = (field, value) => {
