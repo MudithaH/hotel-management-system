@@ -4,12 +4,26 @@
  */
 
 const { findMany, findOne, insertRecord, updateRecord, deleteRecord } = require('../config/db');
-const { hashPassword, formatResponse, logAudit, isValidEmail, isValidPhone } = require('../utils/helpers');
+const { hashPassword, formatResponse, isValidEmail, isValidPhone } = require('../utils/helpers');
+
+// Common SQL queries
+const QUERIES = {
+  CHECK_STAFF_IN_BRANCH: 'SELECT StaffID FROM staff WHERE StaffID = ? AND BranchID = ?',
+  DELETE_STAFF: 'DELETE FROM staff WHERE StaffID = ?',
+  GET_ROOM_TYPES: 'SELECT * FROM roomType ORDER BY TypeName',
+  GET_DESIGNATIONS: 'SELECT * FROM designation ORDER BY Designation',
+  GET_BRANCHES: 'SELECT BranchID, City, Address FROM hotelBranch ORDER BY City',
+  // Stored procedure calls
+  CALL_ROOM_OCCUPANCY_REPORT: 'CALL GetRoomOccupancyReport(?, ?, ?)',
+  CALL_GUEST_BILLING_SUMMARY: 'CALL GetGuestBillingSummary(?, ?, ?)',
+  CALL_SERVICE_USAGE_REPORT: 'CALL GetServiceUsageReport(?, ?, ?)',
+  CALL_MONTHLY_REVENUE_REPORT: 'CALL GetMonthlyRevenueReport(?, ?)',
+  CALL_TOP_SERVICES_REPORT: 'CALL GetTopServicesReport(?, ?, ?, ?)'
+};
 
 // Get dashboard overview stats
 const getDashboardStats = async (req, res) => {
   try {
-    console.log('User Info:', req.user);
     const branchId = req.user.BranchID;
 
     // Get total bookings for the branch
@@ -53,7 +67,6 @@ const getDashboardStats = async (req, res) => {
       findOne(roomsQuery, [branchId]),
       findOne(staffQuery, [branchId])
     ]);
-
 
     const stats = {
       totalBookings: bookingsResult.data?.totalBookings || 0,
@@ -129,16 +142,10 @@ const createStaff = async (req, res) => {
     `;
 
     const result = await insertRecord(query, [name, email, phone, nic, hashedPassword, branchId, designationId]);
-    console.log('Insert Result1', result);
+
     if (!result.success) {
-      console.log('Insert Resulterror2', result);
       return res.status(400).json(formatResponse(false, result.error, null, 400));
     }
-      console.log('Insert Result3', result);
-
-    
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'staff', `CREATE - StaffID: ${result.insertId}`);
 
     res.status(201).json(formatResponse(true, 'Staff member created successfully', { staffId: result.insertId }));
 
@@ -154,12 +161,9 @@ const updateStaff = async (req, res) => {
     const { staffId } = req.params;
     const { name, email, phone, nic, designationId } = req.body;
     const branchId = req.user.BranchID;
-    console.log("req.param: ",req.params);
-    console.log("req.body: ",req.body);
-    console.log("req.user: ",req.user);
+
     // Verify staff belongs to same branch
-    const checkQuery = 'SELECT StaffID FROM staff WHERE StaffID = ? AND BranchID = ?';
-    const checkResult = await findOne(checkQuery, [staffId, branchId]);
+    const checkResult = await findOne(QUERIES.CHECK_STAFF_IN_BRANCH, [staffId, branchId]);
 
     if (!checkResult.success || !checkResult.data) {
       return res.status(404).json(formatResponse(false, 'Staff member not found', null, 404));
@@ -197,9 +201,6 @@ const updateStaff = async (req, res) => {
       return res.status(400).json(formatResponse(false, result.error, null, 400));
     }
 
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'staff', `UPDATE - StaffID: ${staffId}`);
-
     res.json(formatResponse(true, 'Staff member updated successfully'));
 
   } catch (error) {
@@ -215,8 +216,7 @@ const deleteStaff = async (req, res) => {
     const branchId = req.user.BranchID;
 
     // Verify staff belongs to same branch and is not the current user
-    const checkQuery = 'SELECT StaffID FROM staff WHERE StaffID = ? AND BranchID = ?';
-    const checkResult = await findOne(checkQuery, [staffId, branchId]);
+    const checkResult = await findOne(QUERIES.CHECK_STAFF_IN_BRANCH, [staffId, branchId]);
 
     if (!checkResult.success || !checkResult.data) {
       return res.status(404).json(formatResponse(false, 'Staff member not found', null, 404));
@@ -226,15 +226,11 @@ const deleteStaff = async (req, res) => {
       return res.status(400).json(formatResponse(false, 'Cannot delete your own account', null, 400));
     }
 
-    const query = 'DELETE FROM staff WHERE StaffID = ?';
-    const result = await deleteRecord(query, [staffId]);
+    const result = await deleteRecord(QUERIES.DELETE_STAFF, [staffId]);
 
     if (!result.success) {
       return res.status(400).json(formatResponse(false, result.error, null, 400));
     }
-
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'staff', `DELETE - StaffID: ${staffId}`);
 
     res.json(formatResponse(true, 'Staff member deleted successfully'));
 
@@ -275,8 +271,7 @@ const getRooms = async (req, res) => {
 // Get all room types
 const getRoomTypes = async (req, res) => {
   try {
-    const query = 'SELECT * FROM roomType ORDER BY TypeName';
-    const result = await findMany(query);
+    const result = await findMany(QUERIES.GET_ROOM_TYPES);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve room types', null, 500));
@@ -293,8 +288,7 @@ const getRoomTypes = async (req, res) => {
 // Get all designations
 const getDesignations = async (req, res) => {
   try {
-    const query = 'SELECT * FROM designation ORDER BY Designation';
-    const result = await findMany(query);
+    const result = await findMany(QUERIES.GET_DESIGNATIONS);
 
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve designations', null, 500));
@@ -308,6 +302,147 @@ const getDesignations = async (req, res) => {
   }
 };
 
+// =============================================
+// REPORT ENDPOINTS
+// =============================================
+
+// Get room occupancy report
+const getRoomOccupancyReport = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const userBranchId = req.user.BranchID;
+
+    // Enforce branch-scoped reports: ignore any branchId supplied by client
+    // and always generate reports for the requesting user's branch.
+    const targetBranchId = userBranchId;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json(formatResponse(false, 'Start date and end date are required', null, 400));
+    }
+
+    const result = await findMany(QUERIES.CALL_ROOM_OCCUPANCY_REPORT, [startDate, endDate, targetBranchId]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve room occupancy report', null, 500));
+    }
+
+    res.json(formatResponse(true, 'Room occupancy report retrieved successfully', result.data[0]));
+
+  } catch (error) {
+    console.error('Get room occupancy report error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve room occupancy report', null, 500));
+  }
+};
+
+const getGuestBillingSummary = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const userBranchId = req.user.BranchID;
+    // Enforce branch-scoped reports: ignore any branchId supplied by client
+    const targetBranchId = userBranchId;
+
+    const result = await findMany(QUERIES.CALL_GUEST_BILLING_SUMMARY, [targetBranchId, startDate || null, endDate || null]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve guest billing summary', null, 500));
+    }
+
+    res.json(formatResponse(true, 'Guest billing summary retrieved successfully', result.data[0]));
+
+  } catch (error) {
+    console.error('Get guest billing summary error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve guest billing summary', null, 500));
+  }
+};
+
+const getServiceUsageReport = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const userBranchId = req.user.BranchID;
+    // Enforce branch-scoped reports: ignore any branchId supplied by client
+    const targetBranchId = userBranchId;
+
+    const result = await findMany(QUERIES.CALL_SERVICE_USAGE_REPORT, [targetBranchId, startDate || null, endDate || null]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve service usage report', null, 500));
+    }
+
+    res.json(formatResponse(true, 'Service usage report retrieved successfully', result.data[0]));
+
+  } catch (error) {
+    console.error('Get service usage report error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve service usage report', null, 500));
+  }
+};
+
+const getMonthlyRevenueReport = async (req, res) => {
+  try {
+    const { year } = req.query;
+    const userBranchId = req.user.BranchID;
+    // Enforce branch-scoped reports: ignore any branchId supplied by client
+    const targetBranchId = userBranchId;
+    const targetYear = year || new Date().getFullYear();
+
+    const result = await findMany(QUERIES.CALL_MONTHLY_REVENUE_REPORT, [targetYear, targetBranchId]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve monthly revenue report', null, 500));
+    }
+
+    res.json(formatResponse(true, 'Monthly revenue report retrieved successfully', result.data[0]));
+
+  } catch (error) {
+    console.error('Get monthly revenue report error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve monthly revenue report', null, 500));
+  }
+};
+
+// Get top services report
+const getTopServicesReport = async (req, res) => {
+  try {
+    const { startDate, endDate, limit } = req.query;
+    const userBranchId = req.user.BranchID;
+
+    // Enforce branch-scoped reports: ignore any branchId supplied by client
+    const targetBranchId = userBranchId;
+    const resultLimit = limit ? parseInt(limit) : 10;
+
+    // Convert undefined/empty strings to NULL for the stored procedure
+    const startDateParam = startDate && startDate.trim() !== '' ? startDate : null;
+    const endDateParam = endDate && endDate.trim() !== '' ? endDate : null;
+
+    const result = await findMany(QUERIES.CALL_TOP_SERVICES_REPORT, [targetBranchId, startDateParam, endDateParam, resultLimit]);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve top services report', null, 500));
+    }
+
+    res.json(formatResponse(true, 'Top services report retrieved successfully', result.data[0]));
+
+  } catch (error) {
+    console.error('Get top services report error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve top services report', null, 500));
+  }
+};
+
+// Get all branches
+const getBranches = async (req, res) => {
+  try {
+    const result = await findMany(QUERIES.GET_BRANCHES);
+
+    if (!result.success) {
+      return res.status(500).json(formatResponse(false, 'Failed to retrieve branches', null, 500));
+    }
+
+    res.json(formatResponse(true, 'Branches retrieved successfully', result.data));
+
+  } catch (error) {
+    console.error('Get branches error:', error);
+    res.status(500).json(formatResponse(false, 'Failed to retrieve branches', null, 500));
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getStaff,
@@ -316,5 +451,12 @@ module.exports = {
   deleteStaff,
   getRooms,
   getRoomTypes,
-  getDesignations
+  getDesignations,
+  // Report endpoints
+  getRoomOccupancyReport,
+  getGuestBillingSummary,
+  getServiceUsageReport,
+  getMonthlyRevenueReport,
+  getTopServicesReport,
+  getBranches
 };

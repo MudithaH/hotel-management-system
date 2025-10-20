@@ -1,16 +1,29 @@
-const app = require('./app')
-const { testConnection } = require('./config/db')
+const app = require('./app');
+const { testConnection } = require('./config/db');
 
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 5000;
 
-(async () => {
+const startServer = async () => {
   try {
-    await testConnection();
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+    const dbConnected = await testConnection();
+    
+    if (!dbConnected) {
+      console.error('Cannot start server: Database connection failed');
+      process.exit(1);
+    }
+
+    const server = app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
     });
+
+    return server;
+
   } catch (error) {
-    console.error('Database connection failed:', error);
+    console.error('Failed to start server:', error.message);
     process.exit(1);
   }
-})();
+};
+
+startServer();
+
+module.exports = { startServer };

@@ -1,0 +1,67 @@
+# ====================================================================
+# Backend Docker Ignore File
+# ====================================================================
+# Files and directories to exclude from Docker build context
+# This reduces build time and image size
+# ====================================================================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Note: package-lock.json is needed for npm ci, so NOT excluded
+
+# Environment files (sensitive data)
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Testing
+coverage/
+.nyc_output/
+test/
+tests/
+*.test.js
+*.spec.js
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Database files (database runs locally, not in container)
+# Note: seed.js is included for database initialization
+*.sql
+# seed.js
