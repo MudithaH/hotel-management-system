@@ -21,16 +21,16 @@ services:
       - "5000:5000"
     
     environment:
-      # Database Configuration
-      # Use host.docker.internal to connect to localhost from container
-      DB_HOST: host.docker.internal
-      DB_PORT: 3306
-      DB_NAME: hotel_management
-      DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${DB_PASSWORD}
+      # Aiven Cloud Database Configuration
+      DB_HOST: skynest-database-databaseproject-616.b.aivencloud.com
+      DB_PORT: 21937
+      DB_NAME: defaultdb
+      DB_USER: avnadmin
+      DB_PASSWORD: AVNS_9ZKGn8oXGKK1XBypXSh
+      DB_SSL: "true"
       
       # JWT Configuration
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:-skynest_hotel_management_jwt_secret_key_change_this}
       JWT_EXPIRE: 7d
       
       # Server Configuration
@@ -39,10 +39,6 @@ services:
       
       # CORS Configuration
       FRONTEND_URL: http://localhost:3000
-    
-    # Use host network mode on Linux, or extra_hosts on Windows/Mac
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     
     networks:
       - hotel-network

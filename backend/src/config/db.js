@@ -11,7 +11,11 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   multipleStatements: true,
-  charset: 'utf8mb4'
+  charset: 'utf8mb4',
+  // SSL configuration for Aiven and other cloud databases
+  ssl: process.env.DB_SSL === 'true' ? {
+    rejectUnauthorized: false  // Set to false for Aiven with self-signed certs
+  } : false
 });
 
 const testConnection = async () => {
