@@ -316,7 +316,7 @@ main_block: BEGIN
     -- Update bill status
     IF v_total_paid >= v_total_amount THEN
         UPDATE bill
-        SET BillStatus = 'completed'
+        SET BillStatus = 'paid'
         WHERE BillID = NEW.BillID;
     ELSE
         UPDATE bill
