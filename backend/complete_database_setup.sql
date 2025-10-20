@@ -291,13 +291,14 @@ BEGIN
     DECLARE v_total_amount DECIMAL(10,2);
     DECLARE v_bill_exists INT DEFAULT 0;
 
-    -- Calculate number of days (in case needed). If dates missing, default to 0 days.
-    SELECT COALESCE(DATEDIFF(CheckOutDate, CheckInDate), 0)
+    -- Calculate number of days. Minimum charge is 1 day even if same-day checkout.
+    -- If dates missing, default to 1 day.
+    SELECT GREATEST(COALESCE(DATEDIFF(CheckOutDate, CheckInDate), 1), 1)
     INTO v_days
     FROM booking
     WHERE BookingID = p_booking_id;
 
-    -- Calculate room charges
+    -- Calculate room charges (minimum 1 day charge)
     SELECT COALESCE(SUM(rt.DailyRate * v_days), 0)
     INTO v_room_charges
     FROM bookingRooms br
