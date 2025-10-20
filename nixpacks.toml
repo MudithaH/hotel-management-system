@@ -1,0 +1,14 @@
+# Nixpacks Configuration for Railway
+# Alternative build configuration
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x"]
+
+[phases.install]
+cmds = ["cd backend && npm ci"]
+
+[phases.build]
+cmds = ["cd backend && npm run build || echo 'No build step'"]
+
+[start]
+cmd = "cd backend && npm start"
