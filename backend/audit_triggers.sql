@@ -35,8 +35,9 @@ DROP TRIGGER IF EXISTS serviceUsage_after_insert;
 DROP TRIGGER IF EXISTS serviceUsage_after_update;
 DROP TRIGGER IF EXISTS serviceUsage_after_delete;
 DROP TRIGGER IF EXISTS room_after_update;
-DROP TRIGGER IF EXISTS bill_after_insert;
-DROP TRIGGER IF EXISTS bill_before_update;
+DROP TRIGGER IF EXISTS bill_after_checkout;
+DROP TRIGGER IF EXISTS bill_update_after_service_usage;
+DROP TRIGGER IF EXISTS bill_update_after_payment;
 
 -- =============================================
 -- STAFF TABLE TRIGGERS
@@ -234,8 +235,8 @@ END$$
 -- BILL TABLE TRIGGERS
 -- =============================================
 
--- Trigger to calculate initial room charges when booking is checked in
-CREATE TRIGGER bill_after_checki
+-- Trigger to calculate bill when booking is checked out
+CREATE TRIGGER bill_after_checkout
 AFTER UPDATE ON booking
 FOR EACH ROW
 BEGIN
@@ -245,8 +246,8 @@ BEGIN
     DECLARE v_total_amount DECIMAL(10,2);
     DECLARE v_bill_exists INT;
     
-    -- Only proceed if status changed to 'checked-in'
-    IF NEW.BookingStatus = 'checked-in' AND OLD.BookingStatus != 'checked-in' THEN
+    -- Only proceed if status changed to 'checked-out'
+    IF NEW.BookingStatus = 'checked-out' AND OLD.BookingStatus != 'checked-out' THEN
         
         -- Check if bill already exists
         SELECT COUNT(*) INTO v_bill_exists
@@ -283,6 +284,10 @@ BEGIN
             INSERT INTO bill (BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount, BillStatus)
             VALUES (NEW.BookingID, v_room_charges, v_service_charges, 0.00, 0.00, v_total_amount, 'pending');
         END IF;
+        
+        -- Log bill creation/update to audit log
+        INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
+        VALUES (@current_staff_id, 'bill', CONCAT('AUTO-GENERATE - BookingID: ', NEW.BookingID, ' - Amount: ', v_total_amount), NOW());
     END IF;
 END$$
 
@@ -318,6 +323,10 @@ BEGIN
         SET ServiceCharges = v_service_charges,
             TotalAmount = v_total_amount
         WHERE BookingID = NEW.BookingID;
+        
+        -- Log service charge update to audit log
+        INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
+        VALUES (@current_staff_id, 'bill', CONCAT('AUTO-UPDATE - BookingID: ', NEW.BookingID, ' - ServiceCharges updated'), NOW());
     END IF;
 END$$
 
@@ -373,19 +382,25 @@ DELIMITER ;
 --    - DELETE: Uses 0 (system user, since staff can't log own deletion)
 --
 -- 4. BILL CALCULATION TRIGGERS:
---    - bill_after_checkin: Automatically creates/updates bill when booking status changes to 'checked-in'
+--    - bill_after_checkout: Automatically creates/updates bill when booking status changes to 'checked-out'
 --      * Calculates room charges: (CheckOutDate - CheckInDate) × DailyRate for all rooms
---      * Includes all service usage charges
---      * Sets initial total amount (without discount/tax)
+--      * Includes all service usage charges at time of checkout
+--      * Sets initial total amount (with 0 discount and 0 tax)
+--      * Sets bill status to 'pending'
+--      * Logs bill generation to AuditLog (not logged elsewhere)
 --    
---    - bill_update_after_service_usage: Updates bill when services are added
---      * Recalculates service charges total
---      * Updates bill total amount automatically
+--    - bill_update_after_service_usage: Updates bill when services are added (after bill exists)
+--      * Recalculates total service charges for the booking
+--      * Updates bill total amount = RoomCharges + ServiceCharges - Discount + Tax
+--      * Only fires if bill already exists for the booking
+--      * Logs bill update to AuditLog (not logged elsewhere)
 --    
 --    - bill_update_after_payment: Updates bill status based on payments
---      * Compares total paid vs total amount
---      * Sets bill status to 'completed' when fully paid
---      * Sets bill status to 'partially_paid' when partially paid
+--      * Compares total completed payments vs bill total amount
+--      * Sets bill status to 'completed' when fully paid (TotalPaid >= TotalAmount)
+--      * Sets bill status to 'partially_paid' when partially paid (TotalPaid < TotalAmount)
+--      * NOTE: Payment insertion is already logged by payment_after_insert trigger
+--      * Does NOT log to AuditLog to avoid duplicate entries
 --
 -- 5. To use the session variable in your application, execute before operations:
 --    SET @current_staff_id = <logged_in_staff_id>;
@@ -404,12 +419,15 @@ DELIMITER ;
 --
 -- 7. BILLING WORKFLOW:
 --    a) Guest checks in (BookingStatus: 'confirmed' → 'checked-in')
---    b) Services can be added during stay (triggers update bill if exists)
+--    b) Services can be added during stay (if bill exists, triggers update it)
 --    c) Guest checks out (BookingStatus: 'checked-in' → 'checked-out')
---       - bill_after_checkout trigger automatically:
---         * Calculates room charges based on stay duration
---         * Adds service charges
---         * Creates/updates bill record
---    d) Staff can manually adjust discount/tax if needed
---    e) Payment is processed (triggers update bill status)
+--       - bill_after_checkout trigger AUTOMATICALLY:
+--         * Calculates room charges: days × daily rate for all rooms
+--         * Adds all service usage charges
+--         * Creates or updates bill record with status 'pending'
+--         * Sets Discount = 0.00, Tax = 0.00 (staff can update manually if needed)
+--    d) Staff can manually adjust discount/tax in bill table if needed
+--    e) Payment is processed → bill_update_after_payment trigger AUTOMATICALLY:
+--         * Updates bill status to 'completed' or 'partially_paid'
+--    f) Application marks rooms as 'available' when bill is fully paid and booking is checked-out
 -- =============================================

@@ -468,120 +468,6 @@ const getServiceUsage = async (req, res) => {
   }
 };
 
-// Generate bill for booking
-const generateBill = async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-    const { discount = 0, taxRate = 0.1 } = req.body;
-
-    // Get booking details
-    const bookingQuery = `
-      SELECT b.*, g.Name as GuestName
-      FROM booking b
-      JOIN guest g ON b.GuestID = g.GuestID
-      WHERE b.BookingID = ?
-    `;
-    
-    const bookingResult = await findOne(bookingQuery, [bookingId]);
-    
-    if (!bookingResult.success || !bookingResult.data) {
-      return res.status(404).json(formatResponse(false, 'Booking not found', null, 404));
-    }
-
-    const booking = bookingResult.data;
-
-    // Validation: booking must be 'checked-out' to generate bill
-    if (booking.BookingStatus !== 'checked-out') {
-      return res.status(400).json(formatResponse(false, 'Bills can only be generated for checked-out bookings', null, 400));
-    }
-
-    // Calculate room charges
-    const roomsQuery = `
-      SELECT rt.DailyRate
-      FROM bookingRooms br
-      JOIN room r ON br.RoomID = r.RoomID
-      JOIN roomType rt ON r.RoomTypeID = rt.RoomTypeID
-      WHERE br.BookingID = ?
-    `;
-    
-    const roomsResult = await findMany(roomsQuery, [bookingId]);
-    const days = calculateDays(booking.CheckInDate, booking.CheckOutDate);
-    
-    let roomCharges = 0;
-    if (roomsResult.success) {
-      roomCharges = roomsResult.data.reduce((total, room) => total + (room.DailyRate * days), 0);
-    }
-
-    // Calculate service charges
-    const servicesQuery = `
-      SELECT COALESCE(SUM(Quantity * PriceAtUsage), 0) as totalServiceCharges
-      FROM serviceUsage
-      WHERE BookingID = ?
-    `;
-    
-    const servicesResult = await findOne(servicesQuery, [bookingId]);
-    const serviceCharges = parseFloat(servicesResult.data?.totalServiceCharges) || 0;
-
-    // Calculate totals
-    const discountAmount = parseFloat(discount) || 0;
-    const taxRateValue = parseFloat(taxRate) || 0;
-    const roomChargesNum = parseFloat(roomCharges) || 0;
-    const serviceChargesNum = parseFloat(serviceCharges) || 0;
-    
-    const subtotal = roomChargesNum + serviceChargesNum - discountAmount;
-    const tax = subtotal * taxRateValue;
-    const totalAmount = subtotal + tax;
-
-    // Check if bill already exists
-    const existingBillQuery = 'SELECT BillID FROM bill WHERE BookingID = ?';
-    const existingBill = await findOne(existingBillQuery, [bookingId]);
-
-    let billResult;
-    const billValues = [
-      roomChargesNum.toFixed(2), 
-      serviceChargesNum.toFixed(2), 
-      discountAmount.toFixed(2), 
-      tax.toFixed(2), 
-      totalAmount.toFixed(2)
-    ];
-
-    if (existingBill.success && existingBill.data) {
-      // Update existing bill
-      billResult = await updateRecord(
-        'UPDATE bill SET RoomCharges = ?, ServiceCharges = ?, Discount = ?, Tax = ?, TotalAmount = ? WHERE BookingID = ?',
-        [...billValues, bookingId]
-      );
-    } else {
-      // Create new bill
-      billResult = await insertRecord(
-        'INSERT INTO bill (BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount) VALUES (?, ?, ?, ?, ?, ?)',
-        [bookingId, ...billValues]
-      );
-    }
-
-    if (!billResult.success) {
-      return res.status(400).json(formatResponse(false, billResult.error, null, 400));
-    }
-
-    res.json(formatResponse(true, 'Bill generated successfully', {
-      bookingId,
-      guestName: booking.GuestName,
-      checkInDate: booking.CheckInDate,
-      checkOutDate: booking.CheckOutDate,
-      days,
-      roomCharges: roomChargesNum.toFixed(2),
-      serviceCharges: serviceChargesNum.toFixed(2),
-      discount: discountAmount.toFixed(2),
-      tax: tax.toFixed(2),
-      totalAmount: totalAmount.toFixed(2)
-    }));
-
-  } catch (error) {
-    console.error('Generate bill error:', error);
-    res.status(500).json(formatResponse(false, 'Failed to generate bill', null, 500));
-  }
-};
-
 // Get all bills for staff's branch
 const getBills = async (req, res) => {
   try {
@@ -793,23 +679,14 @@ const processPayment = async (req, res) => {
       return res.status(400).json(formatResponse(false, paymentResult.error, null, 400));
     }
 
-    // Calculate new totals
+    // Calculate new totals (bill status is auto-updated by trigger)
     const newTotalPaid = totalPaid + paymentAmount;
     const newRemainingAmount = totalAmount - newTotalPaid;
 
-    // Determine bill status
-    let billStatus = 'pending';
-    if (newTotalPaid >= totalAmount) {
-      billStatus = 'paid';
-    } else if (newTotalPaid > 0) {
-      billStatus = 'partially_paid';
-    }
-
-    // Update bill status
-    await updateRecord('UPDATE bill SET BillStatus = ? WHERE BillID = ?', [billStatus, billId]);
-
+    // Note: Bill status is automatically updated by bill_update_after_payment trigger
+    
     // If fully paid and booking is checked-out, mark rooms as available
-    if (billStatus === 'paid') {
+    if (newTotalPaid >= totalAmount) {
       const bookingStatusResult = await findOne(QUERIES.BOOKING_STATUS, [bill.BookingID]);
       
       if (bookingStatusResult.success && bookingStatusResult.data?.BookingStatus === 'checked-out') {
@@ -819,7 +696,6 @@ const processPayment = async (req, res) => {
 
     res.status(201).json(formatResponse(true, 'Payment processed successfully', { 
       paymentId: paymentResult.insertId,
-      billStatus,
       totalPaid: parseFloat(newTotalPaid.toFixed(2)),
       remainingAmount: parseFloat(newRemainingAmount.toFixed(2))
     }));
@@ -893,7 +769,6 @@ module.exports = {
   getServices,
   addServiceUsage,
   getServiceUsage,
-  generateBill,
   getBills,
   processPayment,
   cancelBooking
