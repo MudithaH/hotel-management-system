@@ -138,10 +138,10 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation Header */}
-      <nav className="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav className="bg-blue-200 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-3 px-2 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               <img 
                 src="/images/skynest-logo.svg" 
                 alt="Sky Nest Logo" 
@@ -164,7 +164,7 @@ const LandingPage = () => {
       </nav>
 
       {/* Hero Section with Background Image */}
-      <section className="relative py-40 overflow-hidden min-h-[600px] flex items-center">
+      <section className="relative py-20 overflow-hidden min-h-[500px] flex items-center">
         {/* Background Image */}
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -175,9 +175,9 @@ const LandingPage = () => {
           <div className="absolute inset-0 bg-gradient-to-br from-sky-900/80 via-blue-900/75 to-indigo-900/80"></div>
         </div>
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+        <div className="max-w-7xl  mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
           <div className="text-center text-white">
-            <div className="flex justify-center mb-8">
+            <div className="flex justify-center mb-4">
               <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl shadow-2xl">
                 <img 
                   src="/images/skynest-logo.svg" 
