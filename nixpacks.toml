@@ -2,13 +2,13 @@
 # Alternative build configuration
 
 [phases.setup]
-nixPkgs = ["nodejs-18_x"]
+nixPkgs = ["nodejs-18_x", "npm-9_x"]
 
 [phases.install]
-cmds = ["cd backend && npm ci"]
+cmds = ["npm ci --omit=dev"]
 
 [phases.build]
-cmds = ["cd backend && npm run build || echo 'No build step'"]
+cmds = ["echo 'No build step required'"]
 
 [start]
-cmd = "cd backend && npm start"
+cmd = "node src/server.js"

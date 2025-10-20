@@ -120,9 +120,16 @@ Excludes unnecessary files from deployment (similar to .gitignore).
 
 ### Error: "Error creating build plan with Railpack"
 **Solution**: 
-- Set the **Root Directory** in Railway service settings
-- For backend: `backend`
-- For frontend: `frontend`
+- Set the **Root Directory** in Railway service settings to: `backend`
+- Set **Builder** to: `DOCKERFILE`
+- This tells Railway where your application code is located
+
+### Error: "No start command was found"
+**Solution**:
+- The root `requirements.txt` file was confusing Railway (it's been renamed to `PROJECT_REQUIREMENTS.md`)
+- Ensure **Root Directory** is set to `backend` in Railway settings
+- Railway will use the `Procfile` or `railway.toml` start command
+- If still failing, manually set Start Command in Settings to: `node src/server.js`
 
 ### Database Connection Failed
 **Solution**:

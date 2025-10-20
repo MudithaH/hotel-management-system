@@ -9,3 +9,7 @@ node_modules/
 .DS_Store
 frontend/
 docker-compose.yml
+PROJECT_REQUIREMENTS.md
+README.md
+QUICKSTART.md
+RAILWAY_DEPLOYMENT.md
