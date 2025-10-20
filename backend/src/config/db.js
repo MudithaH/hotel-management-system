@@ -35,7 +35,9 @@ const pool = mysql.createPool({
   multipleStatements: true,
   charset: 'utf8mb4',
   connectTimeout: 30000, // 30 seconds timeout
-  ssl: sslConfig
+  ssl: process.env.DB_SSL === 'true' ? {
+    rejectUnauthorized: false  // Set to false for Aiven with self-signed certs
+  } : false
 });
 
 const testConnection = async () => {
