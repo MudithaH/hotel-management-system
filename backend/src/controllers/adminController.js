@@ -4,7 +4,7 @@
  */
 
 const { findMany, findOne, insertRecord, updateRecord, deleteRecord } = require('../config/db');
-const { hashPassword, formatResponse, logAudit, isValidEmail, isValidPhone } = require('../utils/helpers');
+const { hashPassword, formatResponse, isValidEmail, isValidPhone } = require('../utils/helpers');
 
 // Get dashboard overview stats
 const getDashboardStats = async (req, res) => {
@@ -132,9 +132,6 @@ const createStaff = async (req, res) => {
       return res.status(400).json(formatResponse(false, result.error, null, 400));
     }
 
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'staff', `CREATE - StaffID: ${result.insertId}`);
-
     res.status(201).json(formatResponse(true, 'Staff member created successfully', { staffId: result.insertId }));
 
   } catch (error) {
@@ -190,9 +187,6 @@ const updateStaff = async (req, res) => {
       return res.status(400).json(formatResponse(false, result.error, null, 400));
     }
 
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'staff', `UPDATE - StaffID: ${staffId}`);
-
     res.json(formatResponse(true, 'Staff member updated successfully'));
 
   } catch (error) {
@@ -225,9 +219,6 @@ const deleteStaff = async (req, res) => {
     if (!result.success) {
       return res.status(400).json(formatResponse(false, result.error, null, 400));
     }
-
-    // Log audit trail
-    await logAudit(req.user.StaffID, 'staff', `DELETE - StaffID: ${staffId}`);
 
     res.json(formatResponse(true, 'Staff member deleted successfully'));
 
@@ -325,9 +316,6 @@ const getRoomOccupancyReport = async (req, res) => {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve room occupancy report', null, 500));
     }
 
-    // Log the report generation
-    await logAudit(req.user.StaffID, 'reports', `Generated room occupancy report for ${startDate} to ${endDate}`);
-
     res.json(formatResponse(true, 'Room occupancy report retrieved successfully', result.data[0]));
 
   } catch (error) {
@@ -349,7 +337,6 @@ const getGuestBillingSummary = async (req, res) => {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve guest billing summary', null, 500));
     }
 
-    await logAudit(req.user.StaffID, 'reports', 'Generated guest billing summary report');
     res.json(formatResponse(true, 'Guest billing summary retrieved successfully', result.data[0]));
 
   } catch (error) {
@@ -371,7 +358,6 @@ const getServiceUsageReport = async (req, res) => {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve service usage report', null, 500));
     }
 
-    await logAudit(req.user.StaffID, 'reports', 'Generated service usage report');
     res.json(formatResponse(true, 'Service usage report retrieved successfully', result.data[0]));
 
   } catch (error) {
@@ -394,7 +380,6 @@ const getMonthlyRevenueReport = async (req, res) => {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve monthly revenue report', null, 500));
     }
 
-    await logAudit(req.user.StaffID, 'reports', `Generated monthly revenue report for ${targetYear}`);
     res.json(formatResponse(true, 'Monthly revenue report retrieved successfully', result.data[0]));
 
   } catch (error) {
@@ -418,8 +403,6 @@ const getTopServicesReport = async (req, res) => {
     if (!result.success) {
       return res.status(500).json(formatResponse(false, 'Failed to retrieve top services report', null, 500));
     }
-
-    await logAudit(req.user.StaffID, 'reports', `Generated top services report`);
 
     res.json(formatResponse(true, 'Top services report retrieved successfully', result.data[0]));
 
