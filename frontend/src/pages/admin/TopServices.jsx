@@ -53,10 +53,11 @@ const TopServices = () => {
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
       if (filters.branchId) params.branchId = filters.branchId;
-
+      console.log('Params:', params);
       const response = await adminAPI.getTopServicesReport(params);
       const data = response.data.data || [];
       setReportData(data);
+      console.log('After api call', data);
 
       // Calculate summary statistics
       const totalServices = data.length;
@@ -83,10 +84,7 @@ const TopServices = () => {
     }
   };
 
-  // Load initial data
-  useEffect(() => {
-    fetchReport();
-  }, []);
+
 
   // Handle filter changes
   const handleFilterChange = (field, value) => {
