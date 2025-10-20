@@ -15,7 +15,8 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Loader
+  Loader,
+  XCircle
 } from 'lucide-react';
 import Layout from '../../components/Layout';
 import toast from 'react-hot-toast';
@@ -77,6 +78,26 @@ const BookingOperations = () => {
     }
   };
 
+  // Handle cancel booking
+  const handleCancelBooking = async (bookingId, guestName) => {
+    if (!confirm(`Are you sure you want to cancel the booking for ${guestName}?`)) {
+      return;
+    }
+    
+    try {
+      setProcessingId(bookingId);
+      await staffAPI.cancelBooking(bookingId);
+      toast.success(`Booking for ${guestName} cancelled successfully`);
+      await fetchBookings(); // Refresh the list
+    } catch (error) {
+      console.error('Cancel booking failed:', error);
+      const message = error.response?.data?.message || 'Failed to cancel booking';
+      toast.error(message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   // Filter bookings based on search term and status
   const filteredBookings = bookings.filter(booking => {
     const matchesSearch = 
@@ -121,18 +142,32 @@ const BookingOperations = () => {
 
     if (booking.BookingStatus === 'booked') {
       return (
-        <button
-          onClick={() => handleCheckIn(booking.BookingID, booking.GuestName)}
-          disabled={isProcessing}
-          className="btn-primary text-sm flex items-center space-x-2"
-        >
-          {isProcessing ? (
-            <Loader className="h-4 w-4 animate-spin" />
-          ) : (
-            <LogIn className="h-4 w-4" />
-          )}
-          <span>Check In</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handleCheckIn(booking.BookingID, booking.GuestName)}
+            disabled={isProcessing}
+            className="btn-primary text-sm flex items-center space-x-2"
+          >
+            {isProcessing ? (
+              <Loader className="h-4 w-4 animate-spin" />
+            ) : (
+              <LogIn className="h-4 w-4" />
+            )}
+            <span>Check In</span>
+          </button>
+          <button
+            onClick={() => handleCancelBooking(booking.BookingID, booking.GuestName)}
+            disabled={isProcessing}
+            className="px-3 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm flex items-center space-x-1 transition-colors"
+          >
+            {isProcessing ? (
+              <Loader className="h-4 w-4 animate-spin" />
+            ) : (
+              <XCircle className="h-4 w-4" />
+            )}
+            <span>Cancel</span>
+          </button>
+        </div>
       );
     }
 
@@ -158,6 +193,15 @@ const BookingOperations = () => {
         <span className="flex items-center space-x-1 text-sm text-gray-500">
           <CheckCircle className="h-4 w-4" />
           <span>Completed</span>
+        </span>
+      );
+    }
+
+    if (booking.BookingStatus === 'cancelled') {
+      return (
+        <span className="flex items-center space-x-1 text-sm text-red-500">
+          <XCircle className="h-4 w-4" />
+          <span>Cancelled</span>
         </span>
       );
     }
@@ -374,8 +418,40 @@ const BookingOperations = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
+                      {/* Existing dynamic button */}
                       {getActionButton(booking)}
+
+                      {/* Always-visible small vertical buttons */}
+                      <div className="flex flex-col items-end space-y-2 mt-2">
+                        <button
+                          onClick={() => handleCheckIn(booking.BookingID, booking.GuestName)}
+                          disabled={processingId === booking.BookingID}
+                          className="btn-primary text-xs px-2 py-1 flex items-center space-x-1"
+                        >
+                          {processingId === booking.BookingID ? (
+                            <Loader className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <LogIn className="h-3 w-3" />
+                          )}
+                          <span>Check In</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleCheckOut(booking.BookingID, booking.GuestName)}
+                          disabled={processingId === booking.BookingID}
+                          className="btn-secondary text-xs px-2 py-1 flex items-center space-x-1"
+                        >
+                          {processingId === booking.BookingID ? (
+                            <Loader className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <LogOut className="h-3 w-3" />
+                          )}
+                          <span>Check Out</span>
+                        </button>
+                      </div>
                     </td>
+
+
                   </tr>
                 ))}
               </tbody>

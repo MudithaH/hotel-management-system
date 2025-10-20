@@ -199,7 +199,7 @@ const StaffDashboard = () => {
                         {booking.BookingStatus}
                       </span>
                       <p className="text-xs text-gray-500 mt-1">
-                        ID: {booking.BookingID}
+                        Booking ID: {booking.BookingID}
                       </p>
                     </div>
                   </div>

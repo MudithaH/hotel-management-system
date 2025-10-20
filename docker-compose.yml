@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
     
     ports:
-      - "5000:5000"
+      - "5001:5000"
     
     environment:
       # Aiven Cloud Database Configuration
@@ -38,7 +38,7 @@ services:
       NODE_ENV: production
       
       # CORS Configuration
-      FRONTEND_URL: http://localhost:3000
+      FRONTEND_URL: http://localhost:3001
     
     networks:
       - hotel-network
@@ -69,7 +69,7 @@ services:
     restart: unless-stopped
     
     ports:
-      - "3000:80"
+      - "3001:80"
     
     depends_on:
       backend:

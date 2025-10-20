@@ -5,7 +5,6 @@
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { insertRecord } = require('../config/db');
 
 // Hash password using bcrypt
 const hashPassword = async (password) => {
@@ -56,20 +55,6 @@ const calculateDays = (checkIn, checkOut) => {
   return Math.round(Math.abs((firstDate - secondDate) / oneDay));
 };
 
-// Log audit trail for data changes
-const logAudit = async (staffId, tableName, operation) => {
-  try {
-    const query = `
-      INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-      VALUES (?, ?, ?, NOW())
-    `;
-    await insertRecord(query, [staffId, tableName, operation]);
-  } catch (error) {
-    console.error('Audit logging error:', error);
-    // Don't throw error as audit logging shouldn't break main operations
-  }
-};
-
 // Response formatter for consistent API responses
 const formatResponse = (success, message, data = null, statusCode = 200) => {
   return {
@@ -106,9 +91,7 @@ module.exports = {
   isValidPhone,
   datesOverlap,
   calculateDays,
-  logAudit,
   formatResponse,
   getPagination,
-
   calculateBillTotal
 };

@@ -4,7 +4,7 @@
  */
 
 const { findOne } = require('../config/db');
-const { comparePassword, generateToken, formatResponse, logAudit } = require('../utils/helpers');
+const { comparePassword, generateToken, formatResponse } = require('../utils/helpers');
 
 // Staff login with email and password
 const login = async (req, res) => {
@@ -56,9 +56,6 @@ const login = async (req, res) => {
       branchId: staff.BranchID
     });
 
-    // Log successful login
-    await logAudit(staff.StaffID, 'auth', 'login');
-
     // Remove sensitive data from response
     const { HashedPassword, ...staffData } = staff;
 
@@ -93,12 +90,9 @@ const getProfile = async (req, res) => {
 };
 
 
-// Logout (client-side mainly, but can log for audit)
+// Logout (client-side mainly)
 const logout = async (req, res) => {
   try {
-    // Log logout activity
-    await logAudit(req.user.StaffID, 'auth', 'logout');
-
     res.json(formatResponse(true, 'Logged out successfully'));
 
   } catch (error) {

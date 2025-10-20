@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" width="700" height="700">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" width="1000" height="1000">
   <!-- Decorative circular pattern with S -->
-  <g transform="translate(500, 250)">
+  <g transform="translate(520, 250)">
     <!-- Outer circle -->
     <circle cx="0" cy="0" r="320" fill="none" stroke="#0a2647" stroke-width="30"/>
     
@@ -30,6 +30,7 @@
         fill="#0a2647" text-anchor="middle" letter-spacing="10">SKYNEST</text>
   
   <!-- BEYOND THE SKY tagline -->
-  <text x="520" y="850" font-family="Arial, sans-serif" font-size="80" font-weight="1000" 
-        fill="#0a2647" text-anchor="middle" letter-spacing="15">BEYOND THE SKY</text>
+  <text x="520" y="850" font-family="Arial, sans-serif" font-size="70" font-weight="1000" 
+        fill="#0a2647" text-anchor="middle" letter-spacing="10">BEYOND THE SKY</text>
 </svg>
+

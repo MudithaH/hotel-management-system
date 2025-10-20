@@ -91,6 +91,7 @@ export const staffAPI = {
   getBookings: () => api.get('/staff/bookings'),
   checkInBooking: (bookingId) => api.put(`/staff/bookings/${bookingId}/checkin`),
   checkOutBooking: (bookingId) => api.put(`/staff/bookings/${bookingId}/checkout`),
+  cancelBooking: (bookingId) => api.put(`/staff/bookings/${bookingId}/cancel`),
   getServices: () => api.get('/staff/services'),
   addServiceUsage: (data) => api.post('/staff/services/usage', data),
   getServiceUsage: (bookingId) => api.get(`/staff/services/usage/${bookingId}`),

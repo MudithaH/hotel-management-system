@@ -23,6 +23,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Set build-time environment variable for API URL
+ARG VITE_API_URL=http://localhost:5001/api
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build the application for production
 # This creates optimized static files in the dist/ directory
 RUN npm run build

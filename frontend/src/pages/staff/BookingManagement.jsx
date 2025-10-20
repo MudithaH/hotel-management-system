@@ -14,7 +14,8 @@ import {
   Clock,
   CheckCircle,
   X,
-  MapPin
+  MapPin,
+  XCircle
 } from 'lucide-react';
 import Layout from '../../components/Layout';
 import toast from 'react-hot-toast';
@@ -30,8 +31,11 @@ const BookingManagement = () => {
     guestId: '',
     checkInDate: '',
     checkOutDate: '',
-    roomIds: []
+    room_Type: '',
+    roomIds: []   
   });
+
+
 
   // Fetch data on component mount
   useEffect(() => {
@@ -43,10 +47,10 @@ const BookingManagement = () => {
 
   // Fetch available rooms when dates change
   useEffect(() => {
-    if (formData.checkInDate && formData.checkOutDate) {
+    if (formData.checkInDate && formData.checkOutDate ) {
       fetchAvailableRooms();
     }
-  }, [formData.checkInDate, formData.checkOutDate]);
+  }, [formData.checkInDate, formData.checkOutDate, formData.room_Type]);
 
   const fetchBookings = async () => {
     try {
@@ -74,8 +78,10 @@ const BookingManagement = () => {
     try {
       const response = await staffAPI.getAvailableRooms({
         checkInDate: formData.checkInDate,
-        checkOutDate: formData.checkOutDate
+        checkOutDate: formData.checkOutDate,
+        room_Type: formData.room_Type,
       });
+
       setAvailableRooms(response.data.data || []);
     } catch (error) {
       console.error('Failed to fetch available rooms:', error);
@@ -106,6 +112,8 @@ const BookingManagement = () => {
         ? prev.roomIds.filter(id => id !== roomId)
         : [...prev.roomIds, roomId]
     }));
+   
+    
   };
 
   // Handle form submission
@@ -130,6 +138,23 @@ const BookingManagement = () => {
       fetchBookings();
     } catch (error) {
       console.error('Failed to create booking:', error);
+    }
+  };
+
+  // Handle cancel booking
+  const handleCancelBooking = async (bookingId, guestName) => {
+    if (!confirm(`Are you sure you want to cancel the booking for ${guestName}?`)) {
+      return;
+    }
+
+    try {
+      await staffAPI.cancelBooking(bookingId);
+      toast.success(`Booking for ${guestName} cancelled successfully`);
+      fetchBookings();
+    } catch (error) {
+      console.error('Failed to cancel booking:', error);
+      const message = error.response?.data?.message || 'Failed to cancel booking';
+      toast.error(message);
     }
   };
 
@@ -160,6 +185,7 @@ const BookingManagement = () => {
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
       case 'confirmed':
+      case 'booked':
         return 'bg-blue-100 text-blue-800';
       case 'checked-in':
         return 'bg-green-100 text-green-800';
@@ -247,6 +273,9 @@ const BookingManagement = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Rooms
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -309,6 +338,23 @@ const BookingManagement = () => {
                           <span className="text-sm text-gray-500">No rooms assigned</span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {booking.BookingStatus === 'booked' && (
+                        <button
+                          onClick={() => handleCancelBooking(booking.BookingID, booking.GuestName)}
+                          className="px-3 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm flex items-center space-x-1 transition-colors ml-auto"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          <span>Cancel</span>
+                        </button>
+                      )}
+                      {booking.BookingStatus === 'cancelled' && (
+                        <span className="flex items-center justify-end space-x-1 text-sm text-red-500">
+                          <XCircle className="h-4 w-4" />
+                          <span>Cancelled</span>
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -398,6 +444,24 @@ const BookingManagement = () => {
                         required
                         className="input-field"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Room Type *
+                      </label>
+                      <select
+                        name="room_Type"
+                        value={formData.room_Type}
+                        onChange={handleInputChange}
+                        className="input-field"
+                      >
+                        <option value="">-- Select Room Type --</option>
+                        <option value="Standard Single">Standard Single</option>
+                        <option value="Standard Double">Standard Double</option>
+                        <option value="Presidential Suite">Presidential Suite</option>
+                        <option value="Family Room">Family Room</option>
+                        <option value="Deluxe Suite">Deluxe Suite</option>
+                      </select>
                     </div>
                   </div>
 
