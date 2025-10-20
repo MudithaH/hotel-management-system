@@ -532,8 +532,13 @@ const checkInBooking = async (req, res) => {
     // Validation: check-in date validation (can check-in on or after CheckInDate)
     const today = new Date();
     const checkInDate = new Date(booking.CheckInDate);
-    if (today < checkInDate.setHours(0, 0, 0, 0)) {
+    const checkOutDate = new Date(booking.CheckOutDate);
+    const checkInMidnight = new Date(checkInDate.setHours(0, 0, 0, 0));
+    if (today < checkInMidnight) {
       return res.status(400).json(formatResponse(false, 'Cannot check-in before the scheduled check-in date', null, 400));
+    }
+    if (today >= checkOutDate) {
+      return res.status(400).json(formatResponse(false, 'Cannot check-in after the scheduled check-out date', null, 400));
     }
 
     // Update booking status to checked-in
@@ -700,6 +705,14 @@ const checkOutBooking = async (req, res) => {
     // Calculate refund if guest overpaid
     const refundAmount = totalPaid > finalTotalAmount ? totalPaid - finalTotalAmount : 0;
 
+    // If early checkout, update CheckOutDate to now
+    if (isEarlyCheckout) {
+      const now = new Date();
+      const nowStr = now.toISOString().slice(0, 19).replace('T', ' ');
+      const updateDateQuery = 'UPDATE booking SET CheckOutDate = ? WHERE BookingID = ?';
+      await updateRecord(updateDateQuery, [nowStr, bookingId]);
+    }
+
     // Update booking status to checked-out
     const updateResult = await updateRecord(QUERIES.UPDATE_BOOKING_STATUS, ['checked-out', bookingId]);
 
@@ -711,8 +724,8 @@ const checkOutBooking = async (req, res) => {
       isEarlyCheckout 
         ? `Early checkout processed successfully. Bill adjusted for ${actualDaysStayed} days (originally booked for ${bookedDays} days)` 
         : 'Booking checked-out successfully', 
-      { 
-        bookingId, 
+      {
+        bookingId,
         guestName: booking.GuestName,
         status: 'checked-out',
         isEarlyCheckout,
@@ -722,7 +735,8 @@ const checkOutBooking = async (req, res) => {
         serviceCharges: serviceCharges.toFixed(2),
         finalTotalAmount: finalTotalAmount.toFixed(2),
         totalPaid: totalPaid.toFixed(2),
-        refundAmount: refundAmount > 0 ? refundAmount.toFixed(2) : null
+        refundAmount: refundAmount > 0 ? refundAmount.toFixed(2) : null,
+        staffName: isEarlyCheckout ? (req.user.Name || req.user.name || null) : undefined
       }
     ));
 

@@ -1,5 +1,6 @@
 USE hotel_management;
 -- run this file only after running seed.js
+ALTER TABLE AuditLog MODIFY COLUMN Operation VARCHAR(500) NOT NULL;
 
 -- =============================================
 -- AUDIT TRIGGERS FOR HOTEL MANAGEMENT SYSTEM
@@ -285,11 +286,18 @@ BEGIN
     SELECT BillID INTO v_bill_id FROM bill WHERE BookingID = NEW.BookingID;
     IF v_bill_id IS NOT NULL THEN
         INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-        VALUES (@current_staff_id, 'bill', CONCAT('UPDATE BILL AFTER SERVICE USAGE - BillID: ', v_bill_id, ' - BookingID: ', NEW.BookingID, ' - UsageID: ', NEW.UsageID), NOW());
+        VALUES (
+            @current_staff_id,
+            'bill',
+            CONCAT('SERVICE USAGE - BillID:', v_bill_id, ' BookID:', NEW.BookingID, ' UsageID:', NEW.UsageID),
+            NOW()
+        );
     END IF;
 END$$
 
--- Trigger to update bill status when payment is made
+-- Trigger to update bill total amount when payment is made
+DELIMITER $$
+
 CREATE TRIGGER bill_update_after_payment
 AFTER INSERT ON payment
 FOR EACH ROW
@@ -303,41 +311,38 @@ BEGIN
     FROM bill
     WHERE BillID = NEW.BillID;
 
-    IF v_total_amount IS NULL THEN
-        -- No bill found; nothing to update (should not happen in normal operation)
-        SET v_total_amount = 0;
+    IF v_total_amount IS NOT NULL THEN
+        -- Calculate total paid (only completed payments)
+        SELECT COALESCE(SUM(Amount), 0) INTO v_total_paid
+        FROM payment
+        WHERE BillID = NEW.BillID
+          AND PaymentStatus = 'completed';
+
+        -- Determine new status
+        IF v_total_paid >= v_total_amount THEN
+            SET v_new_status = 'paid';
+        ELSEIF v_total_paid < v_total_amount THEN
+            SET v_new_status = 'partially_paid';
+        END IF;
+
+        -- Update bill
+        UPDATE bill
+        SET BillStatus = v_new_status
+        WHERE BillID = NEW.BillID;
+
+        -- Optional: Log the update
+        INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
+        VALUES (
+            @current_staff_id,
+            'bill',
+            CONCAT('PAYMENT APPLIED - BillID:', NEW.BillID, 
+                   ' PayID:', NEW.PaymentID, 
+                   ' Amt:', NEW.Amount, 
+                   ' Status:', v_new_status),
+            NOW()
+        );
     END IF;
-
-    -- Calculate total paid for this bill
-    SELECT COALESCE(SUM(Amount), 0) INTO v_total_paid
-    FROM payment
-    WHERE BillID = NEW.BillID
-      AND PaymentStatus = 'completed';
-
-    -- Determine new bill status
-    IF v_total_paid >= v_total_amount THEN
-        SET v_new_status = 'paid';
-    ELSEIF v_total_paid > 0 THEN
-        SET v_new_status = 'partially_paid';
-    ELSE
-        SET v_new_status = 'pending';
-    END IF;
-
-    -- Update bill status
-    UPDATE bill
-    SET BillStatus = v_new_status
-    WHERE BillID = NEW.BillID;
-
-    -- Audit log
-    INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (@current_staff_id, 'bill',
-        CONCAT('UPDATE BILL STATUS TO ', v_new_status, ' AFTER PAYMENT - BillID: ', NEW.BillID,
-               ' - PaymentID: ', NEW.PaymentID,
-               ' - Amount: ', NEW.Amount,
-               ' - TotalPaid: ', v_total_paid),
-        NOW());
 END$$
-
 
 DELIMITER ;
 
