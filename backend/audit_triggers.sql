@@ -35,7 +35,7 @@ DROP TRIGGER IF EXISTS serviceUsage_after_insert;
 DROP TRIGGER IF EXISTS serviceUsage_after_update;
 DROP TRIGGER IF EXISTS serviceUsage_after_delete;
 DROP TRIGGER IF EXISTS room_after_update;
-DROP TRIGGER IF EXISTS bill_after_checkout;
+DROP TRIGGER IF EXISTS bill_after_checkin;
 DROP TRIGGER IF EXISTS bill_update_after_service_usage;
 DROP TRIGGER IF EXISTS bill_update_after_payment;
 
@@ -255,6 +255,13 @@ FOR EACH ROW
 BEGIN
     IF NEW.BookingStatus = 'checked-in' AND OLD.BookingStatus != 'checked-in' THEN
         CALL update_bill_totals(NEW.BookingID);
+        -- Audit log for bill generation after check-in
+        DECLARE v_bill_id INT;
+        SELECT BillID INTO v_bill_id FROM bill WHERE BookingID = NEW.BookingID;
+        IF v_bill_id IS NOT NULL THEN
+            INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
+            VALUES (@current_staff_id, 'bill', CONCAT('GENERATE AFTER CHECKIN - BillID: ', v_bill_id, ' - BookingID: ', NEW.BookingID), NOW());
+        END IF;
     END IF;
 END$$;
 
@@ -265,6 +272,13 @@ AFTER INSERT ON serviceUsage
 FOR EACH ROW
 BEGIN
     CALL update_bill_totals(NEW.BookingID);
+    -- Audit log for bill update after service usage
+    DECLARE v_bill_id INT;
+    SELECT BillID INTO v_bill_id FROM bill WHERE BookingID = NEW.BookingID;
+    IF v_bill_id IS NOT NULL THEN
+        INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
+        VALUES (@current_staff_id, 'bill', CONCAT('UPDATE BILL AFTER SERVICE USAGE - BillID: ', v_bill_id, ' - BookingID: ', NEW.BookingID, ' - UsageID: ', NEW.UsageID), NOW());
+    END IF;
 END;
 $$
 
@@ -297,6 +311,9 @@ BEGIN
         SET BillStatus = 'partially_paid'
         WHERE BillID = NEW.BillID;
     END IF;
+    -- Audit log for bill update after payment
+    INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
+    VALUES (@current_staff_id, 'bill', CONCAT('UPDATE BILL AFTER PAYMENT - BillID: ', NEW.BillID, ' - PaymentID: ', NEW.PaymentID, ' - Amount: ', NEW.Amount), NOW());
 END$$
 
 DELIMITER ;
