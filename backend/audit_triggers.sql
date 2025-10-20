@@ -37,6 +37,7 @@ DROP TRIGGER IF EXISTS serviceUsage_after_delete;
 DROP TRIGGER IF EXISTS room_after_update;
 DROP TRIGGER IF EXISTS bill_after_insert;
 DROP TRIGGER IF EXISTS bill_before_update;
+DROP TRIGGER IF EXISTS trg_room_available_on_checkout;
 
 -- =============================================
 -- STAFF TABLE TRIGGERS
@@ -111,6 +112,19 @@ BEGIN
     UPDATE room
     SET Status = 'occupied'
     WHERE RoomID = NEW.RoomID;
+END; $$
+
+-- Trigger to set room status to 'available' when booking is checked out
+CREATE TRIGGER trg_room_available_on_checkout
+AFTER UPDATE ON booking
+FOR EACH ROW
+BEGIN
+    IF NEW.BookingStatus = 'checked-out' AND OLD.BookingStatus != 'checked-out' THEN
+        UPDATE room r
+        JOIN bookingRooms br ON r.RoomID = br.RoomID
+        SET r.Status = 'available'
+        WHERE br.BookingID = NEW.BookingID;
+    END IF;
 END; $$
 
 -- =============================================
@@ -235,91 +249,24 @@ END$$
 -- =============================================
 
 -- Trigger to calculate initial room charges when booking is checked in
-CREATE TRIGGER bill_after_checki
+CREATE TRIGGER bill_after_checkin
 AFTER UPDATE ON booking
 FOR EACH ROW
 BEGIN
-    DECLARE v_days INT;
-    DECLARE v_room_charges DECIMAL(10,2);
-    DECLARE v_service_charges DECIMAL(10,2);
-    DECLARE v_total_amount DECIMAL(10,2);
-    DECLARE v_bill_exists INT;
-    
-    -- Only proceed if status changed to 'checked-in'
     IF NEW.BookingStatus = 'checked-in' AND OLD.BookingStatus != 'checked-in' THEN
-        
-        -- Check if bill already exists
-        SELECT COUNT(*) INTO v_bill_exists
-        FROM bill
-        WHERE BookingID = NEW.BookingID;
-        
-        -- Calculate number of days
-        SET v_days = DATEDIFF(NEW.CheckOutDate, NEW.CheckInDate);
-        
-        -- Calculate room charges (sum of all rooms' daily rates * number of days)
-        SELECT COALESCE(SUM(rt.DailyRate * v_days), 0) INTO v_room_charges
-        FROM bookingRooms br
-        JOIN room r ON br.RoomID = r.RoomID
-        JOIN roomType rt ON r.RoomTypeID = rt.RoomTypeID
-        WHERE br.BookingID = NEW.BookingID;
-        
-        -- Calculate service charges
-        SELECT COALESCE(SUM(Quantity * PriceAtUsage), 0) INTO v_service_charges
-        FROM serviceUsage
-        WHERE BookingID = NEW.BookingID;
-        
-        -- Calculate total (no discount or tax applied automatically)
-        SET v_total_amount = v_room_charges + v_service_charges;
-        
-        -- Insert or update bill
-        IF v_bill_exists > 0 THEN
-            UPDATE bill 
-            SET RoomCharges = v_room_charges,
-                ServiceCharges = v_service_charges,
-                TotalAmount = v_total_amount,
-                BillStatus = 'pending'
-            WHERE BookingID = NEW.BookingID;
-        ELSE
-            INSERT INTO bill (BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount, BillStatus)
-            VALUES (NEW.BookingID, v_room_charges, v_service_charges, 0.00, 0.00, v_total_amount, 'pending');
-        END IF;
+        CALL update_bill_totals(NEW.BookingID);
     END IF;
-END$$
+END$$;
+
 
 -- Trigger to update bill total amount when service usage is added
 CREATE TRIGGER bill_update_after_service_usage
 AFTER INSERT ON serviceUsage
 FOR EACH ROW
 BEGIN
-    DECLARE v_service_charges DECIMAL(10,2);
-    DECLARE v_room_charges DECIMAL(10,2);
-    DECLARE v_discount DECIMAL(10,2);
-    DECLARE v_tax DECIMAL(10,2);
-    DECLARE v_total_amount DECIMAL(10,2);
-    
-    -- Check if bill exists for this booking
-    IF EXISTS (SELECT 1 FROM bill WHERE BookingID = NEW.BookingID) THEN
-        
-        -- Get current bill values
-        SELECT RoomCharges, Discount, Tax INTO v_room_charges, v_discount, v_tax
-        FROM bill
-        WHERE BookingID = NEW.BookingID;
-        
-        -- Calculate new service charges
-        SELECT COALESCE(SUM(Quantity * PriceAtUsage), 0) INTO v_service_charges
-        FROM serviceUsage
-        WHERE BookingID = NEW.BookingID;
-        
-        -- Calculate new total amount
-        SET v_total_amount = v_room_charges + v_service_charges - v_discount + v_tax;
-        
-        -- Update bill
-        UPDATE bill
-        SET ServiceCharges = v_service_charges,
-            TotalAmount = v_total_amount
-        WHERE BookingID = NEW.BookingID;
-    END IF;
-END$$
+    CALL update_bill_totals(NEW.BookingID);
+END;
+$$
 
 -- Trigger to update bill total amount when payment is made
 CREATE TRIGGER bill_update_after_payment

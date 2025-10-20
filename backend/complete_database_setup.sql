@@ -272,6 +272,65 @@ BEGIN
 END //
 DELIMITER ;
 
+DELIMITER //
+
+CREATE PROCEDURE update_bill_totals(IN p_booking_id INT)
+BEGIN
+    DECLARE v_days INT;
+    DECLARE v_room_charges DECIMAL(10,2);
+    DECLARE v_service_charges DECIMAL(10,2);
+    DECLARE v_discount DECIMAL(10,2);
+    DECLARE v_tax DECIMAL(10,2);
+    DECLARE v_total_amount DECIMAL(10,2);
+
+    -- Calculate number of days (in case needed)
+    SELECT DATEDIFF(CheckOutDate, CheckInDate)
+    INTO v_days
+    FROM booking
+    WHERE BookingID = p_booking_id;
+
+    -- Calculate room charges
+    SELECT COALESCE(SUM(rt.DailyRate * v_days), 0)
+    INTO v_room_charges
+    FROM bookingRooms br
+    JOIN room r ON br.RoomID = r.RoomID
+    JOIN roomType rt ON r.RoomTypeID = rt.RoomTypeID
+    WHERE br.BookingID = p_booking_id;
+
+    -- Calculate service charges
+    SELECT COALESCE(SUM(Quantity * PriceAtUsage), 0)
+    INTO v_service_charges
+    FROM serviceUsage
+    WHERE BookingID = p_booking_id;
+
+    -- Get current discount/tax if bill exists
+    SELECT COALESCE(Discount, 0), COALESCE(Tax, 0)
+    INTO v_discount, v_tax
+    FROM bill
+    WHERE BookingID = p_booking_id
+    LIMIT 1;
+
+    -- Total
+    SET v_total_amount = v_room_charges + v_service_charges - v_discount + v_tax;
+
+    -- Insert or update bill
+    IF EXISTS (SELECT 1 FROM bill WHERE BookingID = p_booking_id) THEN
+        UPDATE bill
+        SET RoomCharges = v_room_charges,
+            ServiceCharges = v_service_charges,
+            TotalAmount = v_total_amount,
+            BillStatus = 'pending'
+        WHERE BookingID = p_booking_id;
+    ELSE
+        INSERT INTO bill (BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount, BillStatus)
+        VALUES (p_booking_id, v_room_charges, v_service_charges, 0.00, 0.00, v_total_amount, 'pending');
+    END IF;
+END//
+
+DELIMITER ;
+
+
+
 -- PERFORMANCE INDEXES 
 
 CREATE INDEX idx_bill_date ON bill(BillDate);
