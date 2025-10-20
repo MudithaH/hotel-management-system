@@ -17,7 +17,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <nav className="bg-white shadow-sm border-b border-gray-200 ">
       <div className="max-w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo and title */}
@@ -25,7 +25,7 @@ const Navbar = () => {
             <img 
               src="/images/skynest-logo.svg" 
               alt="SkyNest Logo" 
-              className="h-10 w-10 mr-3"
+              className="h-14 w-14 mr-3"
             />
             <div>
               <h1 className="text-xl font-bold text-gray-900">
