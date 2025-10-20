@@ -1,7 +1,4 @@
-/**
- * Authentication Controller
- * Handles login, logout, and user profile operations
- */
+//Handles login, logout, and user profile operations
 
 const { findOne } = require('../config/db');
 const { comparePassword, generateToken, formatResponse } = require('../utils/helpers');
@@ -18,7 +15,7 @@ const login = async (req, res) => {
       );
     }
 
-    // Find staff member with designation and branch info
+    // Find correct staff member with designation and branch info
     const staffQuery = `
       SELECT s.StaffID, s.Name, s.Email, s.HashedPassword, s.BranchID, s.DesignationID,
              d.Designation as Role, d.Salary,
@@ -73,7 +70,7 @@ const login = async (req, res) => {
   }
 };
 
-// Get current staff profile (protected route)
+// Get current staff profile 
 const getProfile = async (req, res) => {
   try {
     // User info is available from auth middleware
@@ -90,7 +87,7 @@ const getProfile = async (req, res) => {
 };
 
 
-// Logout (client-side mainly)
+// Logout
 const logout = async (req, res) => {
   try {
     res.json(formatResponse(true, 'Logged out successfully'));
