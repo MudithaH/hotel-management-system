@@ -1,13 +1,19 @@
+/**
+ * Admin Controller
+ * Handles admin-specific operations: staff management, room management, etc.
+ */
+
 const { findMany, findOne, insertRecord, updateRecord, deleteRecord } = require('../config/db');
 const { hashPassword, formatResponse, isValidEmail, isValidPhone } = require('../utils/helpers');
 
+// Common SQL queries
 const QUERIES = {
   CHECK_STAFF_IN_BRANCH: 'SELECT StaffID FROM staff WHERE StaffID = ? AND BranchID = ?',
   DELETE_STAFF: 'DELETE FROM staff WHERE StaffID = ?',
   GET_ROOM_TYPES: 'SELECT * FROM roomType ORDER BY TypeName',
   GET_DESIGNATIONS: 'SELECT * FROM designation ORDER BY Designation',
   GET_BRANCHES: 'SELECT BranchID, City, Address FROM hotelBranch ORDER BY City',
-
+  // Stored procedure calls
   CALL_ROOM_OCCUPANCY_REPORT: 'CALL GetRoomOccupancyReport(?, ?, ?)',
   CALL_GUEST_BILLING_SUMMARY: 'CALL GetGuestBillingSummary(?, ?, ?)',
   CALL_SERVICE_USAGE_REPORT: 'CALL GetServiceUsageReport(?, ?, ?)',
@@ -296,7 +302,9 @@ const getDesignations = async (req, res) => {
   }
 };
 
-
+// =============================================
+// REPORT ENDPOINTS
+// =============================================
 
 // Get room occupancy report
 const getRoomOccupancyReport = async (req, res) => {

@@ -1,30 +1,35 @@
-# Frontend Dockerfile - Multi-stage build
+# ====================================================================
+# Hotel Management System - Frontend Dockerfile
+# ====================================================================
+# Multi-stage build for optimized production image
+# Stage 1: Build the React application
+# Stage 2: Serve static files with nginx
+# ====================================================================
 
-# Stage 1: Build
+# ====================================================================
+# STAGE 1: Build Stage
+# ====================================================================
 FROM node:18-alpine AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Build argument for API URL
-ARG VITE_API_URL=http://localhost:5001/api
-
 # Copy package files
 COPY package*.json ./
 
-# Install ALL dependencies
+# Install ALL dependencies (including devDependencies for build)
 RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Set environment variable for build
-ENV VITE_API_URL=$VITE_API_URL
-
 # Build the application for production
+# This creates optimized static files in the dist/ directory
 RUN npm run build
 
-# Stage 2: Production
+# ====================================================================
+# STAGE 2: Production Stage
+# ====================================================================
 FROM nginx:alpine
 
 # Copy custom nginx configuration

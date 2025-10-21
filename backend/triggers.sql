@@ -1,23 +1,7 @@
 USE hotel_management;
 -- run this file only after running seed.js
+ALTER TABLE AuditLog MODIFY COLUMN Operation VARCHAR(500) NOT NULL;
 
--- =============================================
--- AUDIT TRIGGERS FOR HOTEL MANAGEMENT SYSTEM
--- =============================================
--- This file contains database triggers to automatically log
--- data changes to the AuditLog table without application code.
---
--- Usage: Run this file after setting up the main schema.
--- Command: SOURCE audit_triggers.sql; (from MySQL CLI)
---
--- Tables monitored:
--- - staff (INSERT, UPDATE, DELETE)
--- - guest (INSERT, UPDATE, DELETE)
--- - booking (INSERT, UPDATE, DELETE)
--- - payment (INSERT, UPDATE, DELETE)
--- - serviceUsage (INSERT, UPDATE, DELETE)
--- - room (UPDATE - status changes)
--- =============================================
 
 -- Drop existing triggers if they exist
 DROP TRIGGER IF EXISTS staff_after_insert;
@@ -42,9 +26,9 @@ DROP TRIGGER IF EXISTS bill_after_checkin;
 DROP TRIGGER IF EXISTS bill_update_after_service_usage;
 DROP TRIGGER IF EXISTS bill_update_after_payment;
 
--- =============================================
+
 -- STAFF TABLE TRIGGERS
--- =============================================
+
 
 DELIMITER $$
 
@@ -75,9 +59,9 @@ BEGIN
     VALUES (@current_staff_id, 'staff', CONCAT('DELETE - StaffID: ', OLD.StaffID), NOW());
 END$$
 
--- =============================================
+
 -- GUEST TABLE TRIGGERS
--- =============================================
+
 
 CREATE TRIGGER guest_after_insert
 AFTER INSERT ON guest
@@ -104,9 +88,9 @@ BEGIN
     VALUES (@current_staff_id, 'guest', CONCAT('DELETE - GuestID: ', OLD.GuestID), NOW());
 END$$
 
--- =============================================
+
 -- BOOKINGROOMS TABLE TRIGGERS
--- =============================================
+
 
 CREATE TRIGGER trg_room_occupied
 AFTER INSERT ON bookingRooms
@@ -130,9 +114,9 @@ BEGIN
     END IF;
 END; $$
 
--- =============================================
+
 -- BOOKING TABLE TRIGGERS
--- =============================================
+
 
 CREATE TRIGGER booking_after_insert
 AFTER INSERT ON booking
@@ -176,9 +160,9 @@ BEGIN
     VALUES (@current_staff_id, 'booking', CONCAT('DELETE - BookingID: ', OLD.BookingID), NOW());
 END$$
 
--- =============================================
+
 -- PAYMENT TABLE TRIGGERS
--- =============================================
+
 
 CREATE TRIGGER payment_after_insert
 AFTER INSERT ON payment
@@ -204,9 +188,9 @@ BEGIN
     VALUES (@current_staff_id, 'payment', CONCAT('DELETE - PaymentID: ', OLD.PaymentID, ' - Amount: ', OLD.Amount), NOW());
 END$$
 
--- =============================================
+
 -- SERVICE USAGE TABLE TRIGGERS
--- =============================================
+
 
 CREATE TRIGGER serviceUsage_after_insert
 AFTER INSERT ON serviceUsage
@@ -232,9 +216,9 @@ BEGIN
     VALUES (@current_staff_id, 'serviceUsage', CONCAT('DELETE - UsageID: ', OLD.UsageID), NOW());
 END$$
 
--- =============================================
+
 -- ROOM TABLE TRIGGERS
--- =============================================
+
 
 CREATE TRIGGER room_after_update
 AFTER UPDATE ON room
@@ -247,9 +231,9 @@ BEGIN
     END IF;
 END$$
 
--- =============================================
+
 -- BILL TABLE TRIGGERS
--- =============================================
+
 
 -- Trigger to calculate initial room charges when booking is checked in
 CREATE TRIGGER bill_after_checkin
@@ -285,11 +269,18 @@ BEGIN
     SELECT BillID INTO v_bill_id FROM bill WHERE BookingID = NEW.BookingID;
     IF v_bill_id IS NOT NULL THEN
         INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-        VALUES (@current_staff_id, 'bill', CONCAT('UPDATE BILL AFTER SERVICE USAGE - BillID: ', v_bill_id, ' - BookingID: ', NEW.BookingID, ' - UsageID: ', NEW.UsageID), NOW());
+        VALUES (
+            @current_staff_id,
+            'bill',
+            CONCAT('SERVICE USAGE - BillID:', v_bill_id, ' BookID:', NEW.BookingID, ' UsageID:', NEW.UsageID),
+            NOW()
+        );
     END IF;
 END$$
 
--- Trigger to update bill status when payment is made
+-- Trigger to update bill total amount when payment is made
+DELIMITER $$
+
 CREATE TRIGGER bill_update_after_payment
 AFTER INSERT ON payment
 FOR EACH ROW
@@ -303,109 +294,37 @@ BEGIN
     FROM bill
     WHERE BillID = NEW.BillID;
 
-    IF v_total_amount IS NULL THEN
-        -- No bill found; nothing to update (should not happen in normal operation)
-        SET v_total_amount = 0;
+    IF v_total_amount IS NOT NULL THEN
+        -- Calculate total paid (only completed payments)
+        SELECT COALESCE(SUM(Amount), 0) INTO v_total_paid
+        FROM payment
+        WHERE BillID = NEW.BillID
+          AND PaymentStatus = 'completed';
+
+        -- Determine new status
+        IF v_total_paid >= v_total_amount THEN
+            SET v_new_status = 'paid';
+        ELSEIF v_total_paid < v_total_amount THEN
+            SET v_new_status = 'partially_paid';
+        END IF;
+
+        -- Update bill
+        UPDATE bill
+        SET BillStatus = v_new_status
+        WHERE BillID = NEW.BillID;
+
+        -- Optional: Log the update
+        INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
+        VALUES (
+            @current_staff_id,
+            'bill',
+            CONCAT('PAYMENT APPLIED - BillID:', NEW.BillID, 
+                   ' PayID:', NEW.PaymentID, 
+                   ' Amt:', NEW.Amount, 
+                   ' Status:', v_new_status),
+            NOW()
+        );
     END IF;
-
-    -- Calculate total paid for this bill
-    SELECT COALESCE(SUM(Amount), 0) INTO v_total_paid
-    FROM payment
-    WHERE BillID = NEW.BillID
-      AND PaymentStatus = 'completed';
-
-    -- Determine new bill status
-    IF v_total_paid >= v_total_amount THEN
-        SET v_new_status = 'paid';
-    ELSEIF v_total_paid > 0 THEN
-        SET v_new_status = 'partially_paid';
-    ELSE
-        SET v_new_status = 'pending';
-    END IF;
-
-    -- Update bill status
-    UPDATE bill
-    SET BillStatus = v_new_status
-    WHERE BillID = NEW.BillID;
-
-    -- Audit log
-    INSERT INTO AuditLog (StaffID, TableName, Operation, ChangedAt)
-    VALUES (@current_staff_id, 'bill',
-        CONCAT('UPDATE BILL STATUS TO ', v_new_status, ' AFTER PAYMENT - BillID: ', NEW.BillID,
-               ' - PaymentID: ', NEW.PaymentID,
-               ' - Amount: ', NEW.Amount,
-               ' - TotalPaid: ', v_total_paid),
-        NOW());
 END$$
 
-
 DELIMITER ;
-
--- =============================================
--- NOTES:
--- =============================================
--- 1. All triggers use @current_staff_id session variable to dynamically track
---    which staff member made the change. The application sets this variable
---    automatically via the authentication middleware.
---    To set from application: SET @current_staff_id = 123;
---
--- 2. The StaffID in AuditLog is nullable (as of the foreign key fix).
---    - This allows @current_staff_id to be NULL for system operations
---    - This allows staff deletion while preserving audit history (ON DELETE SET NULL)
---    - Query audit logs with LEFT JOIN to handle deleted staff
---
--- 3. The staff table triggers use special handling:
---    - INSERT: Uses NEW.StaffID (self-registration)
---    - UPDATE: Uses NEW.StaffID (assumes staff updates themselves)
---    - DELETE: Uses 0 (system user, since staff can't log own deletion)
---
--- 4. BILL CALCULATION TRIGGERS:
---    - bill_after_checkout: Automatically creates/updates bill when booking status changes to 'checked-out'
---      * Calculates room charges: (CheckOutDate - CheckInDate) × DailyRate for all rooms
---      * Includes all service usage charges at time of checkout
---      * Sets initial total amount (with 0 discount and 0 tax)
---      * Sets bill status to 'pending'
---      * Logs bill generation to AuditLog (not logged elsewhere)
---    
---    - bill_update_after_service_usage: Updates bill when services are added (after bill exists)
---      * Recalculates total service charges for the booking
---      * Updates bill total amount = RoomCharges + ServiceCharges - Discount + Tax
---      * Only fires if bill already exists for the booking
---      * Logs bill update to AuditLog (not logged elsewhere)
---    
---    - bill_update_after_payment: Updates bill status based on payments
---      * Compares total completed payments vs bill total amount
---      * Sets bill status to 'completed' when fully paid (TotalPaid >= TotalAmount)
---      * Sets bill status to 'partially_paid' when partially paid (TotalPaid < TotalAmount)
---      * NOTE: Payment insertion is already logged by payment_after_insert trigger
---      * Does NOT log to AuditLog to avoid duplicate entries
---
--- 5. To use the session variable in your application, execute before operations:
---    SET @current_staff_id = <logged_in_staff_id>;
---    
---    Example in Node.js:
---    await connection.query('SET @current_staff_id = ?', [req.user.staffId]);
---    await connection.query('INSERT INTO guest ...');
---
--- 6. You can query the audit log with:
---    SELECT 
---      al.*,
---      COALESCE(s.Name, '[Deleted Staff]') as StaffName
---    FROM AuditLog al
---    LEFT JOIN staff s ON al.StaffID = s.StaffID
---    ORDER BY al.ChangedAt DESC LIMIT 100;
---
--- 7. BILLING WORKFLOW:
---    a) Guest checks in (BookingStatus: 'confirmed' → 'checked-in')
---    b) Services can be added during stay (if bill exists, triggers update it)
---    c) Guest checks out (BookingStatus: 'checked-in' → 'checked-out')
---       - bill_after_checkout trigger AUTOMATICALLY:
---         * Calculates room charges: days × daily rate for all rooms
---         * Adds all service usage charges
---         * Creates or updates bill record with status 'pending'
---         * Sets Discount = 0.00, Tax = 0.00 (staff can update manually if needed)
---    d) Staff can manually adjust discount/tax in bill table if needed
---    e) Payment is processed → bill_update_after_payment trigger AUTOMATICALLY:
---         * Updates bill status to 'completed' or 'partially_paid'
---    f) Application marks rooms as 'available' when bill is fully paid and booking is checked-out
--- =============================================

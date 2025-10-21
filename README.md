@@ -1,8 +1,8 @@
-# Hotel Management System
+# 🏨 Hotel Management System
 
-A comprehensive full-stack hotel management system built with Node.js/Express backend and React/Vite frontend, containerized with Docker. This system is designed for internal hotel staff to manage guests, bookings, rooms, and billing operations.
+A comprehensive full-stack hotel management system built with **Node.js/Express** backend and **React/Vite** frontend. This system is designed for internal hotel staff to manage guests, bookings, rooms, and billing operations.
 
-## Features
+## 🚀 Features
 
 ### For Administrators
 - **Dashboard Overview**: Statistics and branch performance metrics
@@ -24,7 +24,7 @@ A comprehensive full-stack hotel management system built with Node.js/Express ba
 - **Audit Logging**: Track all system changes for accountability
 - **Responsive Design**: Modern UI with Tailwind CSS
 
-## Technology Stack
+## 🛠️ Technology Stack
 
 ### Backend
 - **Node.js** - Runtime environment
@@ -44,7 +44,7 @@ A comprehensive full-stack hotel management system built with Node.js/Express ba
 - **Lucide React** - Icon library
 - **React Hot Toast** - Notifications
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 hotel-management-system/
@@ -75,95 +75,84 @@ hotel-management-system/
     └── schema.sql          # Database schema
 ```
 
-## Setup and Installation
+## ⚡ Quick Setup
 
 ### Prerequisites
-- Docker and Docker Compose
-- MySQL database (Aiven or local)
-- Node.js v18+ (for local development)
+- **Node.js** (v18+ recommended)
+- **MySQL** (v8.0+ recommended)  
+- **npm** or **yarn** package manager
 
-### Docker Setup (Recommended)
+### 1. Database Setup
 
-1. **Configure Environment Variables:**
-   
-   Create a `.env` file in the root directory:
-   ```env
-   # Database Configuration (Aiven or local)
-   DB_HOST=your-database-host
-   DB_PORT=3306
-   DB_NAME=hotel_management
-   DB_USER=your_username
-   DB_PASSWORD=your_password
-   
-   # JWT Configuration
-   JWT_SECRET=your_super_secret_jwt_key
-   JWT_EXPIRE=7d
-   
-   # Server Configuration
-   PORT=5000
-   NODE_ENV=production
-   
-   # Frontend Configuration
-   FRONTEND_URL=http://localhost:3001
-   VITE_API_URL=http://localhost:5001/api
-   ```
+1. **Create MySQL Database:**
+```sql
+CREATE DATABASE hotel_management;
+```
 
-2. **Build and Start Containers:**
-   ```bash
-   docker-compose up -d --build
-   ```
+2. **Import Schema:**
+```bash
+mysql -u your_username -p hotel_management < database/schema.sql
+```
 
-3. **Access the Application:**
-   - Frontend: http://localhost:3001
-   - Backend API: http://localhost:5001
+### 2. Backend Setup
 
-4. **View Logs:**
-   ```bash
-   docker-compose logs -f
-   ```
+```bash
+# Navigate to backend directory
+cd backend
 
-5. **Stop Containers:**
-   ```bash
-   docker-compose down
-   ```
+# Install dependencies
+npm install
 
-### Local Development Setup
+# Create environment file
+cp .env.example .env
 
-1. **Backend Setup:**
-   ```bash
-   cd backend
-   npm install
-   cp .env.example .env
-   # Edit .env with your credentials
-   npm run seed
-   npm run dev
-   ```
+# Edit .env with your database credentials
+# DB_HOST=localhost
+# DB_PORT=3306
+# DB_NAME=hotel_management
+# DB_USER=your_mysql_username
+# DB_PASSWORD=your_mysql_password
+# JWT_SECRET=your_super_secret_jwt_key
 
-2. **Frontend Setup:**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+# Seed database with sample data
+npm run seed
 
-## Demo Credentials
+# Start development server
+npm run dev
+```
 
-### Colombo Branch
-- **Admin**: `admin@colombo.skynest.lk` / `password123`
-- **Staff**: `sanduni@colombo.skynest.lk` / `password123`
-- **Staff**: `chamara@colombo.skynest.lk` / `password123`
+The backend server will run on `http://localhost:5000`
 
-### Kandy Branch
-- **Admin**: `admin@kandy.skynest.lk` / `password123`
-- **Staff**: `tharindu@kandy.skynest.lk` / `password123`
-- **Staff**: `nadeeka@kandy.skynest.lk` / `password123`
+### 3. Frontend Setup
 
-### Galle Branch
-- **Admin**: `admin@galle.skynest.lk` / `password123`
-- **Staff**: `dilini@galle.skynest.lk` / `password123`
-- **Staff**: `kasun@galle.skynest.lk` / `password123`
+```bash
+# Navigate to frontend directory (in a new terminal)
+cd frontend
 
-## API Documentation
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+The frontend application will run on `http://localhost:3000`
+
+## 🔑 Demo Credentials
+
+### Branch 1 (New York)
+- **Admin**: `admin@branch1.com` / `password123`
+- **Staff**: `sarah@branch1.com` / `password123`
+
+### Branch 2 (Los Angeles)  
+- **Admin**: `admin@branch2.com` / `password123`
+- **Staff**: `david@branch2.com` / `password123`
+
+### Branch 3 (Miami)
+- **Admin**: `admin@branch3.com` / `password123`
+- **Staff**: `maria@branch3.com` / `password123`
+
+## 📝 API Documentation
 
 ### Authentication Endpoints
 ```
@@ -196,7 +185,7 @@ POST /api/staff/services/usage     # Add service usage
 POST /api/staff/bills/:bookingId   # Generate bill
 ```
 
-## Security Features
+## 🔒 Security Features
 
 - **JWT Authentication** with secure token generation
 - **Password Hashing** using bcryptjs with salt rounds
@@ -206,7 +195,7 @@ POST /api/staff/bills/:bookingId   # Generate bill
 - **Rate Limiting** to prevent abuse
 - **CORS Configuration** for secure cross-origin requests
 
-## Database Schema Overview
+## 📊 Database Schema Overview
 
 ### Core Tables
 - **hotelBranch**: Hotel branch information (3 branches)
@@ -227,7 +216,7 @@ POST /api/staff/bills/:bookingId   # Generate bill
 - **payment**: Payment transactions
 - **AuditLog**: System change tracking
 
-## Development Scripts
+## 🚦 Development Scripts
 
 ### Backend Scripts
 ```bash
@@ -243,7 +232,7 @@ npm run build      # Production build
 npm run preview    # Preview production build
 ```
 
-## Sample Data Included
+## 📈 Sample Data Included
 
 The seeding script creates:
 - **3 Hotel Branches** (New York, Los Angeles, Miami)
@@ -254,7 +243,7 @@ The seeding script creates:
 - **10 Services** (room service, laundry, spa, etc.)
 - **Sample bills and payments** for demonstration
 
-## Environment Variables
+## 🔧 Environment Variables
 
 ### Backend (.env)
 ```
@@ -276,7 +265,7 @@ VITE_API_URL=http://localhost:5000/api
 VITE_APP_NAME=Hotel Management System
 ```
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### Common Issues
 
@@ -298,37 +287,39 @@ VITE_APP_NAME=Hotel Management System
    - Verify JWT_SECRET is set in backend `.env`
    - Check token expiration in JWT payload
 
-## Docker Commands
+## 📚 Learning Resources
 
-```bash
-# Build and start containers
-docker-compose up -d --build
+This project demonstrates:
+- **REST API Development** with Express.js
+- **JWT Authentication** implementation
+- **MySQL Database Design** with proper relationships
+- **React Context API** for state management  
+- **Protected Routes** and role-based access
+- **Modern React Hooks** and functional components
+- **Responsive Design** with Tailwind CSS
 
-# View logs
-docker-compose logs -f
+## 🤝 Contributing
 
-# Stop containers
-docker-compose down
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 
-# Restart containers
-docker-compose restart
+## 📄 License
 
-# Remove containers and volumes
-docker-compose down -v
-```
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## System Architecture
+## 💡 Future Enhancements
 
-This application follows a modern microservices architecture:
-- **Frontend**: React SPA served via Nginx
-- **Backend**: RESTful API built with Express.js
-- **Database**: MySQL (Aiven cloud or local)
-- **Containerization**: Docker with multi-stage builds
-
-## Development Team
-
-Developed as part of a university database management system project.
+- **Email Notifications** for booking confirmations
+- **PDF Bill Generation** for guest receipts  
+- **Advanced Reporting** with charts and analytics
+- **Mobile App** for staff on-the-go access
+- **Payment Gateway Integration** for online payments
+- **Inventory Management** for hotel supplies
+- **Maintenance Scheduling** for room upkeep
 
 ---
 
-© 2025 Hotel Management System. All rights reserved.
+**Built with ❤️ for learning full-stack development**

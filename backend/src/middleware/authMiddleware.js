@@ -1,13 +1,18 @@
+/**
+ * JWT Authentication Middleware
+ * Verifies JWT tokens and extracts user information
+ * Protects routes based on user roles (Admin/Staff)
+ */
 
 const jwt = require('jsonwebtoken');
 const { findOne, pool } = require('../config/db');
 
-
+// Verify JWT token and extract user info
 const authenticateToken = async (req, res, next) => {
   try {
-    
+    // Get token from Authorization header (Bearer token)
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; 
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
       return res.status(401).json({ 

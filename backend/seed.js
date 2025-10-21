@@ -7,11 +7,11 @@ require('dotenv').config();
 
 // Database connection configuration
 const dbConfig = {
-  host: process.env.DB_HOST || 'skynest-database-databaseproject-616.b.aivencloud.com',
-  port: process.env.DB_PORT || 21937,
-  user: process.env.DB_USER || 'avnadmin',
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'defaultdb',
+  database: process.env.DB_NAME || 'hotel_management',
 };
 
 async function seedDatabase() {
