@@ -28,7 +28,7 @@ BEGIN
                 SELECT 1 FROM booking bk
                 JOIN bookingRooms br ON bk.BookingID = br.BookingID
                 WHERE br.RoomID = r.RoomID
-                AND bk.BookingStatus IN ('confirmed', 'checked-in')
+                AND bk.BookingStatus IN ('confirmed', 'checked-in', 'checked-out')
                 AND bk.CheckInDate <= p_end_date
                 AND bk.CheckOutDate >= p_start_date
             ) THEN 'Occupied'
@@ -47,7 +47,7 @@ BEGIN
             SELECT COALESCE(SUM(DATEDIFF(
                 LEAST(bk.CheckOutDate, p_end_date),
                 GREATEST(bk.CheckInDate, p_start_date)
-            )), 0)
+            ) + 1), 0)
             FROM booking bk
             JOIN bookingRooms br ON bk.BookingID = br.BookingID
             WHERE br.RoomID = r.RoomID
