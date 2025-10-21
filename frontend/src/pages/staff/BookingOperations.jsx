@@ -66,37 +66,133 @@ const BookingOperations = () => {
   const handleCheckOut = async (bookingId, guestName) => {
     try {
       setProcessingId(bookingId);
-      await staffAPI.checkOutBooking(bookingId);
-      toast.success(`${guestName} checked out successfully`);
+      const response = await staffAPI.checkOutBooking(bookingId);
+      
+      // Check if it's an early checkout with detailed response
+      const data = response.data?.data;
+      
+      if (data?.isEarlyCheckout) {
+        // Early checkout - show detailed information
+        const refundAmount = data.refundAmount ? parseFloat(data.refundAmount) : 0;
+        
+        if (refundAmount > 0) {
+          // Guest overpaid - show refund message
+          toast.success(
+            `Early Checkout Completed!\n\n` +
+            `Guest: ${guestName}\n` +
+            `Originally booked: ${data.bookedDays} days\n` +
+            `Actually stayed: ${data.actualDaysStayed} days\n` +
+            `Adjusted bill: LKR ${data.finalTotalAmount}\n\n` +
+            `⚠️ REFUND DUE: LKR ${refundAmount.toFixed(2)}\n` +
+            `Please process refund to guest.`,
+            { duration: 8000 }
+          );
+        } else {
+          // Normal early checkout
+          toast.success(
+            `Early Checkout Completed!\n\n` +
+            `Guest: ${guestName}\n` +
+            `Originally booked: ${data.bookedDays} days\n` +
+            `Actually stayed: ${data.actualDaysStayed} days\n` +
+            `Final bill: LKR ${data.finalTotalAmount}`,
+            { duration: 6000 }
+          );
+        }
+      } else {
+        // Normal checkout
+        toast.success(`${guestName} checked out successfully`);
+      }
+      
       await fetchBookings(); // Refresh the list
     } catch (error) {
       console.error('Check-out failed:', error);
-      const message = error.response?.data?.message || 'Check-out failed';
-      toast.error(message);
+      const errorData = error.response?.data?.data;
+      
+      // Show detailed error with remaining amount if available
+      if (errorData?.remainingAmount) {
+        // Add backdrop blur effect
+        const backdrop = document.createElement('div');
+        backdrop.id = 'checkout-error-backdrop';
+        backdrop.className = 'fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-40';
+        backdrop.style.transition = 'opacity 0.3s ease-in-out';
+        document.body.appendChild(backdrop);
+        
+        // Custom error toast with navigation buttons - use toast.custom to avoid default error behavior
+        toast.custom(
+          (t) => (
+            <div className="bg-white shadow-2xl rounded-lg p-5 w-full max-w-md border border-gray-300">
+              <div className="flex flex-col space-y-3">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <XCircle className="h-6 w-6 text-red-500" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-base text-gray-900">Checkout Failed - Payment Required</div>
+                  </div>
+                </div>
+                <div className="text-sm space-y-1">
+                  <div className="text-gray-700">Cannot check-out: Bill not fully paid.</div>
+                  <div className="font-semibold text-red-700">
+                    Remaining amount: LKR {errorData.remainingAmount}
+                  </div>
+                </div>
+                <div className="text-sm bg-gray-50 p-3 rounded space-y-1 border border-gray-200">
+                  <div className="font-medium text-gray-700">Bill Details:</div>
+                  <div className="text-gray-600">Total Amount: LKR {errorData.totalAmount}</div>
+                  <div className="text-gray-600">Already Paid: LKR {errorData.totalPaid}</div>
+                  <div className="font-semibold text-gray-900">Remaining: LKR {errorData.remainingAmount}</div>
+                  {errorData.isEarlyCheckout && (
+                    <div className="text-orange-600 italic mt-1">
+                      Early checkout: {errorData.actualDaysStayed} of {errorData.bookedDays} days
+                    </div>
+                  )}
+                </div>
+                <div className="flex space-x-2 pt-2">
+                  <button
+                    onClick={() => {
+                      const backdropEl = document.getElementById('checkout-error-backdrop');
+                      if (backdropEl) backdropEl.remove();
+                      toast.dismiss(t.id);
+                      window.location.href = '/staff/billing';
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    Make the Payment
+                  </button>
+                  <button
+                    onClick={() => {
+                      const backdropEl = document.getElementById('checkout-error-backdrop');
+                      if (backdropEl) backdropEl.remove();
+                      toast.dismiss(t.id);
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ),
+          { 
+            duration: Infinity, // Don't auto-dismiss
+            position: 'top-right',
+            style: {
+              marginTop: '80px',
+              marginLeft: '20px',
+              zIndex: 50
+            }
+          }
+        );
+      } else {
+        // Simple error message for other errors
+        const message = error.response?.data?.message || 'Check-out failed';
+        toast.error(message);
+      }
     } finally {
       setProcessingId(null);
     }
   };
 
-  // Handle cancel booking
-  const handleCancelBooking = async (bookingId, guestName) => {
-    if (!confirm(`Are you sure you want to cancel the booking for ${guestName}?`)) {
-      return;
-    }
-    
-    try {
-      setProcessingId(bookingId);
-      await staffAPI.cancelBooking(bookingId);
-      toast.success(`Booking for ${guestName} cancelled successfully`);
-      await fetchBookings(); // Refresh the list
-    } catch (error) {
-      console.error('Cancel booking failed:', error);
-      const message = error.response?.data?.message || 'Failed to cancel booking';
-      toast.error(message);
-    } finally {
-      setProcessingId(null);
-    }
-  };
 
   // Filter bookings based on search term and status
   const filteredBookings = bookings.filter(booking => {
@@ -125,7 +221,7 @@ const BookingOperations = () => {
   // Get status color
   const getStatusColor = (status) => {
     switch (status) {
-      case 'booked':
+      case 'confirmed':
         return 'bg-blue-100 text-blue-800';
       case 'checked-in':
         return 'bg-green-100 text-green-800';
@@ -136,68 +232,21 @@ const BookingOperations = () => {
     }
   };
 
-  // Get appropriate action button
+  // Get appropriate action buttons - always show both Check In and Check Out buttons
   const getActionButton = (booking) => {
     const isProcessing = processingId === booking.BookingID;
+    const isBooked = booking.BookingStatus === 'confirmed';
+    const isCheckedIn = booking.BookingStatus === 'checked-in';
+    const isCheckedOut = booking.BookingStatus === 'checked-out';
+    const isCancelled = booking.BookingStatus === 'cancelled';
+    
+    // Check if bill exists and is fully paid
+    const hasBill = booking.BillID != null;
+    const billPaid = booking.BillStatus === 'paid';
+    const remainingAmount = booking.RemainingAmount || 0;
 
-    if (booking.BookingStatus === 'booked') {
-      return (
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handleCheckIn(booking.BookingID, booking.GuestName)}
-            disabled={isProcessing}
-            className="btn-primary text-sm flex items-center space-x-2"
-          >
-            {isProcessing ? (
-              <Loader className="h-4 w-4 animate-spin" />
-            ) : (
-              <LogIn className="h-4 w-4" />
-            )}
-            <span>Check In</span>
-          </button>
-          <button
-            onClick={() => handleCancelBooking(booking.BookingID, booking.GuestName)}
-            disabled={isProcessing}
-            className="px-3 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm flex items-center space-x-1 transition-colors"
-          >
-            {isProcessing ? (
-              <Loader className="h-4 w-4 animate-spin" />
-            ) : (
-              <XCircle className="h-4 w-4" />
-            )}
-            <span>Cancel</span>
-          </button>
-        </div>
-      );
-    }
-
-    if (booking.BookingStatus === 'checked-in') {
-      return (
-        <button
-          onClick={() => handleCheckOut(booking.BookingID, booking.GuestName)}
-          disabled={isProcessing}
-          className="btn-secondary text-sm flex items-center space-x-2"
-        >
-          {isProcessing ? (
-            <Loader className="h-4 w-4 animate-spin" />
-          ) : (
-            <LogOut className="h-4 w-4" />
-          )}
-          <span>Check Out</span>
-        </button>
-      );
-    }
-
-    if (booking.BookingStatus === 'checked-out') {
-      return (
-        <span className="flex items-center space-x-1 text-sm text-gray-500">
-          <CheckCircle className="h-4 w-4" />
-          <span>Completed</span>
-        </span>
-      );
-    }
-
-    if (booking.BookingStatus === 'cancelled') {
+    // For cancelled bookings, show status only
+    if (isCancelled) {
       return (
         <span className="flex items-center space-x-1 text-sm text-red-500">
           <XCircle className="h-4 w-4" />
@@ -206,13 +255,62 @@ const BookingOperations = () => {
       );
     }
 
-    return null;
+    // For checked-out bookings, show completed status only (no buttons)
+    if (isCheckedOut) {
+      return (
+        <span className="flex items-center space-x-1 text-sm text-gray-500">
+          <CheckCircle className="h-4 w-4" />
+          <span>Completed</span>
+        </span>
+      );
+    }
+
+    // For active bookings (confirmed or checked-in), show both buttons vertically
+    return (
+      <div className="flex flex-col items-end space-y-2">
+        {/* Check In Button - enabled only when status is 'confirmed' */}
+        <button
+          onClick={() => handleCheckIn(booking.BookingID, booking.GuestName)}
+          disabled={!isBooked || isProcessing}
+          className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-1 transition-colors min-w-[120px] ${
+            isBooked && !isProcessing
+              ? 'bg-green-500 text-white hover:bg-green-600'
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+          }`}
+        >
+          {isProcessing && isBooked ? (
+            <Loader className="h-4 w-4 animate-spin" />
+          ) : (
+            <LogIn className="h-4 w-4" />
+          )}
+          <span>Check In</span>
+        </button>
+
+        {/* Check Out Button - enabled for all checked-in bookings (early checkout allowed) */}
+        <button
+          onClick={() => handleCheckOut(booking.BookingID, booking.GuestName)}
+          disabled={!isCheckedIn || isProcessing}
+          className={`px-3 py-2 rounded-lg text-sm flex items-center space-x-1 transition-colors min-w-[120px] ${
+            isCheckedIn && !isProcessing
+              ? 'bg-blue-500 text-white hover:bg-blue-600'
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+          }`}
+        >
+          {isProcessing && isCheckedIn ? (
+            <Loader className="h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="h-4 w-4" />
+          )}
+          <span>Check Out</span>
+        </button>
+      </div>
+    );
   };
 
   // Calculate stats
   const stats = {
     total: bookings.length,
-    booked: bookings.filter(b => b.BookingStatus === 'booked').length,
+    confirmed: bookings.filter(b => b.BookingStatus === 'confirmed').length,
     checkedIn: bookings.filter(b => b.BookingStatus === 'checked-in').length,
     checkedOut: bookings.filter(b => b.BookingStatus === 'checked-out').length
   };
@@ -253,7 +351,7 @@ const BookingOperations = () => {
           </div>
           <div className="card text-center">
             <Clock className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-gray-900">{stats.booked}</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.confirmed}</p>
             <p className="text-sm text-gray-600">Ready for Check-in</p>
           </div>
           <div className="card text-center">
@@ -295,14 +393,14 @@ const BookingOperations = () => {
               All ({stats.total})
             </button>
             <button
-              onClick={() => setStatusFilter('booked')}
+              onClick={() => setStatusFilter('confirmed')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === 'booked'
+                statusFilter === 'confirmed'
                   ? 'bg-orange-100 text-orange-700 border border-orange-300'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Ready for Check-in ({stats.booked})
+              Ready for Check-in ({stats.confirmed})
             </button>
             <button
               onClick={() => setStatusFilter('checked-in')}

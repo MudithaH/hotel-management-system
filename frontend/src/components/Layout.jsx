@@ -3,26 +3,28 @@
  * Main layout wrapper with sidebar and navbar
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 
 const Layout = ({ children }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Top navbar */}
-      <Navbar />
+      <Navbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <div className="flex-shrink-0 relative">
-          <Sidebar />
+          <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         </div>
         
         {/* Page content */}
         <main className="flex-1 overflow-auto">
-          <div className="p-6">
+          <div className="p-3 sm:p-4 lg:p-6">
             {children}
           </div>
         </main>

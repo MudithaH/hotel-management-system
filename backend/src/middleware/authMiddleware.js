@@ -5,7 +5,7 @@
  */
 
 const jwt = require('jsonwebtoken');
-const { findOne } = require('../config/db');
+const { findOne, pool } = require('../config/db');
 
 // Verify JWT token and extract user info
 const authenticateToken = async (req, res, next) => {
@@ -45,6 +45,17 @@ const authenticateToken = async (req, res, next) => {
 
     // Add user info to request object for use in routes
     req.user = userResult.data;
+    
+    // Set MySQL session variable for audit tracking
+    try {
+      const connection = await pool.getConnection();
+      await connection.query('SET @current_staff_id = ?', [req.user.StaffID]);
+      connection.release();
+    } catch (error) {
+      console.error('Failed to set audit session variable:', error);
+      // Don't fail the request if audit tracking fails
+    }
+    
     next();
 
   } catch (error) {
@@ -97,7 +108,7 @@ const requireStaff = (req, res, next) => {
   }
 
   // Both admin (1) and staff (2) can access staff routes
-  if (req.user.DesignationID !== 1 && req.user.DesignationID !== 2) {
+  if ( req.user.DesignationID !== 2) {
     return res.status(403).json({ 
       success: false, 
       message: 'Staff access required' 

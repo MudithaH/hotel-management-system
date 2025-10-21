@@ -1,11 +1,11 @@
--- Hotel Management System - Complete Database Setup
--- This file contains only the stored procedures that are actually used by the backend
-
 USE hotel_management;
-
--- =============================================
--- REPORT STORED PROCEDURES
--- =============================================
+-- Drop existing procedures if they exist
+DROP PROCEDURE IF EXISTS GetRoomOccupancyReport;
+DROP PROCEDURE IF EXISTS GetGuestBillingSummary;
+DROP PROCEDURE IF EXISTS GetServiceUsageReport;
+DROP PROCEDURE IF EXISTS GetMonthlyRevenueReport;
+DROP PROCEDURE IF EXISTS GetTopServicesReport;
+DROP PROCEDURE IF EXISTS update_bill_totals;
 
 DELIMITER //
 CREATE PROCEDURE GetRoomOccupancyReport(
@@ -28,7 +28,7 @@ BEGIN
                 SELECT 1 FROM booking bk
                 JOIN bookingRooms br ON bk.BookingID = br.BookingID
                 WHERE br.RoomID = r.RoomID
-                AND bk.BookingStatus IN ('confirmed', 'checked-in')
+                AND bk.BookingStatus IN ('confirmed', 'checked-in', 'checked-out')
                 AND bk.CheckInDate <= p_end_date
                 AND bk.CheckOutDate >= p_start_date
             ) THEN 'Occupied'
@@ -47,7 +47,7 @@ BEGIN
             SELECT COALESCE(SUM(DATEDIFF(
                 LEAST(bk.CheckOutDate, p_end_date),
                 GREATEST(bk.CheckInDate, p_start_date)
-            )), 0)
+            ) + 1), 0)
             FROM booking bk
             JOIN bookingRooms br ON bk.BookingID = br.BookingID
             WHERE br.RoomID = r.RoomID
@@ -215,24 +215,26 @@ BEGIN
         sc.ServiceID,
         sc.ServiceName,
         sc.Price as BasePrice,
-        COUNT(su.UsageID) as TotalUsages,
-        SUM(su.Quantity) as TotalQuantity,
-        COUNT(DISTINCT su.BookingID) as UniqueBookings,
-        COUNT(DISTINCT g.GuestID) as UniqueGuests,
-        SUM(su.Quantity * su.PriceAtUsage) as TotalRevenue,
-        AVG(su.PriceAtUsage) as AveragePrice,
-        (COUNT(su.UsageID) * 100.0 / 
-            (SELECT COUNT(*) FROM serviceUsage su2 
-             JOIN booking bk2 ON su2.BookingID = bk2.BookingID
-             JOIN bookingRooms br2 ON bk2.BookingID = br2.BookingID
-             JOIN room r2 ON br2.RoomID = r2.RoomID
-             WHERE (p_branch_id IS NULL OR r2.BranchID = p_branch_id)
-             AND (p_start_date IS NULL OR su2.UsageDate >= p_start_date)
-             AND (p_end_date IS NULL OR su2.UsageDate <= p_end_date)
-            )
+        COALESCE(COUNT(su.UsageID), 0) as TotalUsages,
+        COALESCE(SUM(su.Quantity), 0) as TotalQuantity,
+        COALESCE(COUNT(DISTINCT su.BookingID), 0) as UniqueBookings,
+        COALESCE(COUNT(DISTINCT g.GuestID), 0) as UniqueGuests,
+        COALESCE(SUM(su.Quantity * su.PriceAtUsage), 0) as TotalRevenue,
+        COALESCE(AVG(su.PriceAtUsage), sc.Price) as AveragePrice,
+        COALESCE(
+            (COUNT(su.UsageID) * 100.0 / 
+                NULLIF((SELECT COUNT(*) FROM serviceUsage su2 
+                 JOIN booking bk2 ON su2.BookingID = bk2.BookingID
+                 JOIN bookingRooms br2 ON bk2.BookingID = br2.BookingID
+                 JOIN room r2 ON br2.RoomID = r2.RoomID
+                 WHERE (p_branch_id IS NULL OR r2.BranchID = p_branch_id)
+                 AND (p_start_date IS NULL OR su2.UsageDate >= p_start_date)
+                 AND (p_end_date IS NULL OR su2.UsageDate <= p_end_date)
+                ), 0)
+            ), 0
         ) as UsagePercentage,
         CASE 
-            WHEN COUNT(su.UsageID) >= (
+            WHEN COALESCE(COUNT(su.UsageID), 0) >= COALESCE((
                 SELECT AVG(service_count) * 2 
                 FROM (
                     SELECT COUNT(su3.UsageID) as service_count
@@ -245,8 +247,8 @@ BEGIN
                     AND (p_end_date IS NULL OR su3.UsageDate <= p_end_date)
                     GROUP BY su3.ServiceID
                 ) as avg_calc
-            ) THEN 'High Demand'
-            WHEN COUNT(su.UsageID) >= (
+            ), 0) THEN 'High Demand'
+            WHEN COALESCE(COUNT(su.UsageID), 0) >= COALESCE((
                 SELECT AVG(service_count) 
                 FROM (
                     SELECT COUNT(su3.UsageID) as service_count
@@ -259,7 +261,7 @@ BEGIN
                     AND (p_end_date IS NULL OR su3.UsageDate <= p_end_date)
                     GROUP BY su3.ServiceID
                 ) as avg_calc
-            ) THEN 'Medium Demand'
+            ), 0) THEN 'Medium Demand'
             ELSE 'Low Demand'
         END as DemandLevel
     FROM serviceCatalogue sc
@@ -272,15 +274,81 @@ BEGIN
     AND (p_start_date IS NULL OR su.UsageDate >= p_start_date OR su.UsageID IS NULL)
     AND (p_end_date IS NULL OR su.UsageDate <= p_end_date OR su.UsageID IS NULL)
     GROUP BY sc.ServiceID, sc.ServiceName, sc.Price
-    ORDER BY TotalUsages DESC, TotalRevenue DESC
+    ORDER BY COALESCE(COUNT(su.UsageID), 0) DESC, COALESCE(SUM(su.Quantity * su.PriceAtUsage), 0) DESC
     LIMIT v_limit;
 END //
 DELIMITER ;
 
--- =============================================
--- PERFORMANCE INDEXES (Essential Only)
--- =============================================
+DELIMITER //
 
-CREATE INDEX idx_bill_date ON bill(BillDate);
+CREATE PROCEDURE update_bill_totals(IN p_booking_id INT)
+BEGIN
+    DECLARE v_days INT;
+    DECLARE v_room_charges DECIMAL(10,2);
+    DECLARE v_service_charges DECIMAL(10,2);
+    DECLARE v_discount DECIMAL(10,2);
+    DECLARE v_tax DECIMAL(10,2);
+    DECLARE v_total_amount DECIMAL(10,2);
+    DECLARE v_bill_exists INT DEFAULT 0;
+
+    -- Calculate number of days. Minimum charge is 1 day even if same-day checkout.
+    -- If dates missing, default to 1 day.
+    SELECT GREATEST(COALESCE(DATEDIFF(CheckOutDate, CheckInDate), 1), 1)
+    INTO v_days
+    FROM booking
+    WHERE BookingID = p_booking_id;
+
+    -- Calculate room charges (minimum 1 day charge)
+    SELECT COALESCE(SUM(rt.DailyRate * v_days), 0)
+    INTO v_room_charges
+    FROM bookingRooms br
+    JOIN room r ON br.RoomID = r.RoomID
+    JOIN roomType rt ON r.RoomTypeID = rt.RoomTypeID
+    WHERE br.BookingID = p_booking_id;
+
+    -- Calculate service charges
+    SELECT COALESCE(SUM(Quantity * PriceAtUsage), 0)
+    INTO v_service_charges
+    FROM serviceUsage
+    WHERE BookingID = p_booking_id;
+
+    -- Get current discount/tax if bill exists; default to 0 when no bill present
+    SELECT COUNT(*) INTO v_bill_exists FROM bill WHERE BookingID = p_booking_id;
+    IF v_bill_exists > 0 THEN
+        SELECT COALESCE(Discount, 0), COALESCE(Tax, 0)
+        INTO v_discount, v_tax
+        FROM bill
+        WHERE BookingID = p_booking_id
+        LIMIT 1;
+    ELSE
+        SET v_discount = 0;
+        SET v_tax = 0;
+    END IF;
+
+    -- Total (ensure no NULLs)
+    SET v_total_amount = COALESCE(v_room_charges, 0) + COALESCE(v_service_charges, 0) - COALESCE(v_discount, 0) + COALESCE(v_tax, 0);
+
+    -- Insert or update bill
+    IF EXISTS (SELECT 1 FROM bill WHERE BookingID = p_booking_id) THEN
+        UPDATE bill
+        SET RoomCharges = v_room_charges,
+            ServiceCharges = v_service_charges,
+            TotalAmount = v_total_amount,
+            BillStatus = 'pending'
+        WHERE BookingID = p_booking_id;
+    ELSE
+        INSERT INTO bill (BookingID, RoomCharges, ServiceCharges, Discount, Tax, TotalAmount, BillStatus)
+        VALUES (p_booking_id, v_room_charges, v_service_charges, 0.00, 0.00, v_total_amount, 'pending');
+    END IF;
+END//
+
+DELIMITER ;
+
+
+
+-- PERFORMANCE INDEXES 
+
+
 CREATE INDEX idx_booking_dates ON booking(CheckInDate, CheckOutDate);
 CREATE INDEX idx_room_status ON room(Status);
+CREATE INDEX idx_bill_date ON bill(BillDate);

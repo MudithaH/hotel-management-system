@@ -32,7 +32,7 @@ const BookingManagement = () => {
     checkInDate: '',
     checkOutDate: '',
     room_Type: '',
-    roomIds: []   
+    roomIds: []
   });
 
 
@@ -79,7 +79,7 @@ const BookingManagement = () => {
       const response = await staffAPI.getAvailableRooms({
         checkInDate: formData.checkInDate,
         checkOutDate: formData.checkOutDate,
-        room_Type: formData.room_Type,
+        room_Type: formData.room_Type
       });
 
       setAvailableRooms(response.data.data || []);
@@ -185,7 +185,6 @@ const BookingManagement = () => {
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
       case 'confirmed':
-      case 'booked':
         return 'bg-blue-100 text-blue-800';
       case 'checked-in':
         return 'bg-green-100 text-green-800';
@@ -340,7 +339,7 @@ const BookingManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {booking.BookingStatus === 'booked' && (
+                      {booking.BookingStatus === 'confirmed' && (
                         <button
                           onClick={() => handleCancelBooking(booking.BookingID, booking.GuestName)}
                           className="px-3 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm flex items-center space-x-1 transition-colors ml-auto"

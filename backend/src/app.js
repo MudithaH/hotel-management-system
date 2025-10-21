@@ -1,14 +1,8 @@
-/**
- * Express Application Setup
- * Main application configuration with middleware and routes
- */
+//Main application configuration with middleware and routes
 
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-
-// Import middleware
-const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -50,11 +44,5 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/staff', staffRoutes);
 
-
-// Handle 404 routes
-app.use(notFound);
-
-// Global error handling middleware (must be last)
-app.use(errorHandler);
 
 module.exports = app;

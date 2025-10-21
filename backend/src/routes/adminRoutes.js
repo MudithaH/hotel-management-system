@@ -1,10 +1,73 @@
-/**
- * Admin Routes
- * Defines all admin-specific endpoints
- */
+// // handle admin routes
+
+// const express = require('express');
+// const {
+// 	getDashboardStats,
+// 	getStaff,
+// 	createStaff,
+// 	updateStaff,
+// 	deleteStaff,
+// 	getRooms,
+// 	getRoomTypes,
+// 	getDesignations,
+// 	getBranches,
+// 	// Reports
+// 	getRoomOccupancyReport,
+// 	getGuestBillingSummary,
+// 	getServiceUsageReport,
+// 	getMonthlyRevenueReport,
+// 	getTopServicesReport
+// } = require('../controllers/adminController');
+
+// const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
+
+// const router = express.Router();
+
+// // Protect all admin routes
+// router.use(authenticateToken);
+// router.use(requireAdmin);
+
+// // Dashboard
+// // GET /api/admin/dashboard/stats
+// router.get('/dashboard/stats', getDashboardStats);
+
+// // Staff management
+// // GET /api/admin/staff
+// router.get('/staff', getStaff);
+// // POST /api/admin/staff
+// router.post('/staff', createStaff);
+// // PUT /api/admin/staff/:staffId
+// router.put('/staff/:staffId', updateStaff);
+// // DELETE /api/admin/staff/:staffId
+// router.delete('/staff/:staffId', deleteStaff);
+
+// // Room and reference data
+// // GET /api/admin/rooms
+// router.get('/rooms', getRooms);
+// // GET /api/admin/room-types
+// router.get('/room-types', getRoomTypes);
+// // GET /api/admin/designations
+// router.get('/designations', getDesignations);
+// // GET /api/admin/branches
+// router.get('/branches', getBranches);
+
+// // Reports
+// // GET /api/admin/reports/room-occupancy
+// router.get('/reports/room-occupancy', getRoomOccupancyReport);
+// // GET /api/admin/reports/guest-billing
+// router.get('/reports/guest-billing', getGuestBillingSummary);
+// // GET /api/admin/reports/service-usage
+// router.get('/reports/service-usage', getServiceUsageReport);
+// // GET /api/admin/reports/monthly-revenue
+// router.get('/reports/monthly-revenue', getMonthlyRevenueReport);
+// // GET /api/admin/reports/top-services
+// router.get('/reports/top-services', getTopServicesReport);
+
+// module.exports = router;
+
+//handle admin routes
 
 const express = require('express');
-const router = express.Router();
 const {
   getDashboardStats,
   getStaff,
@@ -14,7 +77,6 @@ const {
   getRooms,
   getRoomTypes,
   getDesignations,
-  // Report endpoints
   getRoomOccupancyReport,
   getGuestBillingSummary,
   getServiceUsageReport,
@@ -24,82 +86,60 @@ const {
 } = require('../controllers/adminController');
 const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
 
+const router = express.Router();
+
 // Apply auth middleware to all admin routes
 router.use(authenticateToken);
 router.use(requireAdmin);
 
-// Dashboard routes
-// @route   GET /api/admin/dashboard/stats
-// @desc    Get dashboard overview statistics
-// @access  Private (Admin only)
+
 router.get('/dashboard/stats', getDashboardStats);
 
 // Staff management routes
-// @route   GET /api/admin/staff
-// @desc    Get all staff members for admin's branch
-// @access  Private (Admin only)
 router.get('/staff', getStaff);
 
-// @route   POST /api/admin/staff
-// @desc    Create new staff member
-// @access  Private (Admin only)
+// POST /api/admin/staff
+
 router.post('/staff', createStaff);
 
-// @route   PUT /api/admin/staff/:staffId
-// @desc    Update staff member
-// @access  Private (Admin only)
+// PUT /api/admin/staff/:staffId
+
 router.put('/staff/:staffId', updateStaff);
 
-// @route   DELETE /api/admin/staff/:staffId
-// @desc    Delete staff member
-// @access  Private (Admin only)
+// DELETE /api/admin/staff/:staffId
+// Delete staff member
 router.delete('/staff/:staffId', deleteStaff);
 
 // Room management routes
-// @route   GET /api/admin/rooms
-// @desc    Get all rooms for admin's branch
-// @access  Private (Admin only)
+
 router.get('/rooms', getRooms);
 
-// @route   GET /api/admin/room-types
-// @desc    Get all room types
-// @access  Private (Admin only)
+
 router.get('/room-types', getRoomTypes);
 
-// @route   GET /api/admin/designations
-// @desc    Get all designations
-// @access  Private (Admin only)
+// GET /api/admin/designations
+// Get all designations
 router.get('/designations', getDesignations);
 
-// Report routes
-// @route   GET /api/admin/reports/room-occupancy
-// @desc    Get room occupancy report for selected date range
-// @access  Private (Admin only)
+
 router.get('/reports/room-occupancy', getRoomOccupancyReport);
 
-// @route   GET /api/admin/reports/guest-billing
-// @desc    Get guest billing summary including unpaid balances
-// @access  Private (Admin only)
+// GET /api/admin/reports/guest-billing
+// Get guest billing summary including unpaid balances
 router.get('/reports/guest-billing', getGuestBillingSummary);
 
-// @route   GET /api/admin/reports/service-usage
-// @desc    Get service usage breakdown per room and service type
-// @access  Private (Admin only)
+// GET /api/admin/reports/service-usage
+// Get service usage breakdown per room and service type
 router.get('/reports/service-usage', getServiceUsageReport);
 
-// @route   GET /api/admin/reports/monthly-revenue
-// @desc    Get monthly revenue per branch from room charges and services
-// @access  Private (Admin only)
+
 router.get('/reports/monthly-revenue', getMonthlyRevenueReport);
 
-// @route   GET /api/admin/reports/top-services
-// @desc    Get top-used services and customer preference trends
-// @access  Private (Admin only)
+
 router.get('/reports/top-services', getTopServicesReport);
 
-// @route   GET /api/admin/branches
-// @desc    Get all branches for report filtering
-// @access  Private (Admin only)
+// GET /api/admin/branches
+// Get all branches for report filtering
 router.get('/branches', getBranches);
 
 module.exports = router;

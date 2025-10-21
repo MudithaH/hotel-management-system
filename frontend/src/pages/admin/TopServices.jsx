@@ -5,11 +5,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import Layout from '../../components/Layout';
 import { Trophy, TrendingUp, Users, Wrench, Filter, Download, Star, BarChart3, Target } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const TopServices = () => {
+  const TopServices = () => {
+  const { user } = useAuth();
   const [reportData, setReportData] = useState([]);
   const [branches, setBranches] = useState([]);
   const [filters, setFilters] = useState({
@@ -222,7 +224,7 @@ const TopServices = () => {
             <h2 className="text-lg font-semibold text-gray-900">Report Filters</h2>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
               <input
@@ -245,18 +247,12 @@ const TopServices = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
-              <select
-                value={filters.branchId}
-                onChange={(e) => handleFilterChange('branchId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Branches</option>
-                {branches.map(branch => (
-                  <option key={branch.BranchID} value={branch.BranchID}>
-                    {branch.City} - {branch.Address}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="text"
+                value={user?.BranchCity ? `${user.BranchCity}` : 'Your Branch'}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+              />
             </div>
 
             <div>
@@ -287,7 +283,7 @@ const TopServices = () => {
 
         {/* Summary Statistics */}
         {reportData.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="bg-blue-100 p-3 rounded-lg">

@@ -35,6 +35,9 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Check if custom error handling is enabled for this request
+    const skipGlobalErrorHandler = error.config?.skipGlobalErrorHandler;
+    
     const message = error.response?.data?.message || 'Something went wrong';
     
     if (error.response?.status === 401) {
@@ -47,7 +50,8 @@ api.interceptors.response.use(
       toast.error('You do not have permission to perform this action.');
     } else if (error.response?.status >= 500) {
       toast.error('Server error. Please try again later.');
-    } else {
+    } else if (!skipGlobalErrorHandler) {
+      // Only show default error toast if not skipped
       toast.error(message);
     }
     
@@ -87,15 +91,17 @@ export const staffAPI = {
   getAvailableRooms: (params) => api.get('/staff/rooms/available', { params }),
   createGuest: (data) => api.post('/staff/guests', data),
   getGuests: () => api.get('/staff/guests'),
+  updateGuest: (guestId, data) => api.put(`/staff/guests/${guestId}`, data),
   createBooking: (data) => api.post('/staff/bookings', data),
   getBookings: () => api.get('/staff/bookings'),
   checkInBooking: (bookingId) => api.put(`/staff/bookings/${bookingId}/checkin`),
-  checkOutBooking: (bookingId) => api.put(`/staff/bookings/${bookingId}/checkout`),
+  checkOutBooking: (bookingId) => api.put(`/staff/bookings/${bookingId}/checkout`, {}, { 
+    skipGlobalErrorHandler: true // We handle errors manually with custom toast
+  }),
   cancelBooking: (bookingId) => api.put(`/staff/bookings/${bookingId}/cancel`),
   getServices: () => api.get('/staff/services'),
   addServiceUsage: (data) => api.post('/staff/services/usage', data),
   getServiceUsage: (bookingId) => api.get(`/staff/services/usage/${bookingId}`),
-  generateBill: (bookingId, data) => api.post(`/staff/bills/${bookingId}`, data),
   getBills: () => api.get('/staff/bills'),
   processPayment: (data) => api.post('/staff/payments', data)
 };

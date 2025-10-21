@@ -1,7 +1,5 @@
-/**
- * Database Seeding Script
- * Populates the database with sample data for testing and demonstration
- */
+//Populates the database with sample data for testing and demonstration
+
 
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
@@ -20,14 +18,14 @@ async function seedDatabase() {
   let connection;
   
   try {
-    console.log('🌱 Starting database seeding...');
+    console.log('Starting database seeding...');
     
     // Create database connection
     connection = await mysql.createConnection(dbConfig);
-    console.log('✅ Connected to database');
+    console.log('Connected to database');
 
     // Clear existing data (in correct order to avoid foreign key constraints)
-    console.log('🧹 Clearing existing data...');
+    console.log('Clearing existing data...');
     await connection.execute('DELETE FROM payment');
     await connection.execute('DELETE FROM bill');
     await connection.execute('DELETE FROM serviceUsage');
@@ -75,7 +73,7 @@ async function seedDatabase() {
     }
 
     // 2. Insert Designations
-    console.log('💼 Seeding designations...');
+    console.log('Seeding designations...');
     const designations = [
       ['Admin', 150000.00],
       ['Staff', 85000.00]
@@ -106,7 +104,7 @@ async function seedDatabase() {
     }
 
     // 4. Insert Service Catalogue
-    console.log('🛎️ Seeding services...');
+    console.log('Seeding services...');
     const services = [
       ['Room Service - Sri Lankan Breakfast', 2500.00],
       ['Room Service - Rice & Curry', 3500.00],
@@ -130,7 +128,7 @@ async function seedDatabase() {
     }
 
     // 5. Insert Staff (1 admin per branch + additional staff)
-    console.log('👥 Seeding staff members...');
+    console.log('Seeding staff members...');
     const hashedPassword = await bcrypt.hash('password123', 12);
     
     const staff = [
@@ -158,7 +156,7 @@ async function seedDatabase() {
     }
 
     // 6. Insert Rooms (10 rooms per branch)
-    console.log('🏠 Seeding rooms...');
+    console.log('Seeding rooms...');
     for (let branchId = 1; branchId <= 3; branchId++) {
       // 2 rooms of each type per branch
       for (let roomTypeId = 1; roomTypeId <= 5; roomTypeId++) {
@@ -173,7 +171,7 @@ async function seedDatabase() {
     }
 
     // 7. Insert Sample Guests
-    console.log('👤 Seeding guests...');
+    console.log('Seeding guests...');
     const guests = [
       ['Anil Jayasuriya', 'anil.j@gmail.com', '+94 77 123 4567'],
       ['Priya Herath', 'priya.herath@yahoo.com', '+94 71 234 5678'],
@@ -195,7 +193,7 @@ async function seedDatabase() {
     }
 
     // 8. Insert Sample Bookings
-    console.log('📅 Seeding bookings...');
+    console.log('Seeding bookings...');
     const bookings = [
       [1, '2025-10-10 14:00:00', '2025-10-13 11:00:00', 'checked-out'],
       [2, '2025-10-15 15:00:00', '2025-10-19 11:00:00', 'checked-in'],
@@ -212,7 +210,7 @@ async function seedDatabase() {
     }
 
     // 9. Insert Booking Rooms (assign rooms to bookings)
-    console.log('🔗 Seeding booking-room assignments...');
+    console.log('Seeding booking-room assignments...');
     const bookingRooms = [
       [1, 1],  // Booking 1 -> Room 1
       [2, 11], // Booking 2 -> Room 11 (Branch 2)
@@ -235,7 +233,7 @@ async function seedDatabase() {
     }
 
     // 10. Insert Sample Service Usage
-    console.log('🍽️ Seeding service usage...');
+    console.log('Seeding service usage...');
     const serviceUsages = [
       [1, 1, '2025-10-11', 3, 2500.00], // Sri Lankan Breakfast for booking 1
       [1, 4, '2025-10-11', 2, 1500.00], // Laundry for booking 1
@@ -253,7 +251,7 @@ async function seedDatabase() {
     }
 
     // 11. Insert Sample Bills
-    console.log('💰 Seeding bills...');
+    console.log('Seeding bills...');
     const bills = [
       [1, 37500.00, 10500.00, 0.00, 1920.00, 49920.00], // Booking 1 (3 days Standard Double)
       [2, 74000.00, 19000.00, 5000.00, 3520.00, 91520.00], // Booking 2 (4 days Standard Double with discount)
@@ -284,7 +282,7 @@ async function seedDatabase() {
     }
 
     // 13. Insert Sample Audit Logs
-    console.log('📋 Seeding audit logs...');
+    console.log('Seeding audit logs...');
     const auditLogs = [
       [1, 'booking', '2025-10-10 13:45:00', 'CREATE - BookingID: 1'],
       [4, 'booking', '2025-10-15 14:30:00', 'CREATE - BookingID: 2'],
@@ -300,9 +298,9 @@ async function seedDatabase() {
       );
     }
 
-    console.log('✅ Database seeding completed successfully!');
+    console.log('Database seeding completed successfully!');
     console.log('');
-    console.log('📊 Seeded Data Summary:');
+    console.log('Seeded Data Summary:');
     console.log('   • 3 Sky Nest Hotel Branches (Colombo, Kandy, Galle)');
     console.log('   • 2 Designations (Admin: LKR 150,000, Staff: LKR 85,000)');
     console.log('   • 5 Room Types (LKR 12,500 - 70,000 per night)');
@@ -313,7 +311,7 @@ async function seedDatabase() {
     console.log('   • 5 Sample Bookings with rooms assigned');
     console.log('   • Sample service usage, bills, and payments (in LKR)');
     console.log('');
-    console.log('🔑 Demo Login Credentials:');
+    console.log('Demo Login Credentials:');
     console.log('   Admin (Colombo): admin@colombo.skynest.lk / password123');
     console.log('   Admin (Kandy): admin@kandy.skynest.lk / password123');
     console.log('   Admin (Galle): admin@galle.skynest.lk / password123');
@@ -322,7 +320,7 @@ async function seedDatabase() {
     console.log('   Staff (Galle): dilini@galle.skynest.lk / password123');
 
   } catch (error) {
-    console.error('❌ Seeding failed:', error);
+    console.error('Seeding failed:', error);
     throw error;
   } finally {
     if (connection) {
@@ -335,11 +333,11 @@ async function seedDatabase() {
 if (require.main === module) {
   seedDatabase()
     .then(() => {
-      console.log('🎉 Seeding process completed successfully!');
+      console.log('Seeding process completed successfully!');
       process.exit(0);
     })
     .catch((error) => {
-      console.error('💥 Seeding process failed:', error);
+      console.error('Seeding process failed:', error);
       process.exit(1);
     });
 }

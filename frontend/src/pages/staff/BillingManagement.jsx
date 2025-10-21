@@ -67,20 +67,6 @@ const BillingManagement = () => {
     }
   };
 
-  // Generate bill for a booking
-  const generateBill = async (bookingId) => {
-    try {
-      const response = await staffAPI.generateBill(bookingId, {
-        discount: 0,
-        taxRate: 0.0  // Set to 0% tax rate since your example shows $0.00 tax
-      });
-      toast.success('Bill generated successfully');
-      await fetchBills(); // Refresh bills
-    } catch (error) {
-      console.error('Failed to generate bill:', error);
-    }
-  };
-
   // Process payment
   const processPayment = async (e) => {
     e.preventDefault();
@@ -268,41 +254,6 @@ const BillingManagement = () => {
             <p className="text-sm text-gray-600">Billable Bookings</p>
           </div>
         </div>
-
-        {/* Billable Bookings */}
-        {billableBookings.length > 0 && (
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Ready to Bill</h3>
-            <div className="space-y-3">
-              {billableBookings.slice(0, 5).map((booking) => (
-                <div key={booking.BookingID} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-4">
-                      <div>
-                        <p className="font-medium text-gray-900">Booking #{booking.BookingID}</p>
-                        <p className="text-sm text-gray-600">{booking.GuestName}</p>
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {formatDate(booking.CheckInDate)} - {formatDate(booking.CheckOutDate)}
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => generateBill(booking.BookingID)}
-                    className="btn-primary text-sm"
-                  >
-                    Generate Bill
-                  </button>
-                </div>
-              ))}
-              {billableBookings.length > 5 && (
-                <p className="text-sm text-gray-500 text-center">
-                  And {billableBookings.length - 5} more bookings ready for billing
-                </p>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Search and Filters */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

@@ -1,0 +1,15 @@
+# Railway Ignore File
+# Files and directories to ignore during Railway deployment
+
+node_modules/
+.git/
+.env
+.env.local
+*.log
+.DS_Store
+frontend/
+docker-compose.yml
+PROJECT_REQUIREMENTS.md
+README.md
+QUICKSTART.md
+RAILWAY_DEPLOYMENT.md
