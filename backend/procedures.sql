@@ -348,6 +348,7 @@ DELIMITER ;
 
 -- PERFORMANCE INDEXES 
 
-CREATE INDEX idx_bill_date ON bill(BillDate);
+
 CREATE INDEX idx_booking_dates ON booking(CheckInDate, CheckOutDate);
 CREATE INDEX idx_room_status ON room(Status);
+CREATE INDEX idx_bill_date ON bill(BillDate);
