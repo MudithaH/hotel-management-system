@@ -1,0 +1,14 @@
+# Nixpacks Configuration for Railway
+# Alternative build configuration
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x"]
+
+[phases.install]
+cmds = ["npm install --production"]
+
+[phases.build]
+cmds = ["echo 'No build step required'"]
+
+[start]
+cmd = "node src/server.js"
