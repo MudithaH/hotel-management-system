@@ -7,8 +7,14 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 // Create axios instance with base configuration
+// In production (Docker), use relative path which nginx will proxy
+// In development, use the Railway URL directly
+const apiBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+console.log('🔧 API Base URL:', apiBaseURL);
+console.log('🔧 All env vars:', import.meta.env);
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: apiBaseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
