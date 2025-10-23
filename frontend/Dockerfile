@@ -28,14 +28,14 @@ ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
 # Debug: Print the env var value
-RUN echo "🔧 Building with VITE_API_URL: $VITE_API_URL"
+RUN echo "Building with VITE_API_URL: $VITE_API_URL"
 
 # Build the application for production
 # This creates optimized static files in the dist/ directory
 RUN npm run build
 
 # Debug: Check if the URL is in the built files
-RUN grep -r "hotel-backend-production" /app/dist || echo "⚠️ Railway URL not found in build!"
+RUN grep -r "hotel-backend-production" /app/dist || echo "Railway URL not found in build!"
 
 # ====================================================================
 # STAGE 2: Production Stage
