@@ -1,0 +1,20 @@
+name: Deploy Backend to Railway
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Railway redeploy
+        run: |
+          curl -X POST https://backboard.railway.app/graphql \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
+          -d '{"query": "mutation { deployService(serviceId: \"484fceef-4c82-49ae-9603-93154647f446?environmentId=59f9a0b3-1669-41c3-92b5-d1e0108b5d7a\") { id status } }"}'
