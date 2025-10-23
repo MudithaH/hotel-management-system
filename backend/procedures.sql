@@ -137,8 +137,7 @@ BEGIN
     WHERE (p_branch_id IS NULL OR r.BranchID = p_branch_id)
     AND (p_start_date IS NULL OR su.UsageDate >= p_start_date)
     AND (p_end_date IS NULL OR su.UsageDate <= p_end_date)
-    GROUP BY hb.BranchID, hb.City, r.RoomID, r.RoomNumber, rt.TypeName, 
-             sc.ServiceID, sc.ServiceName, sc.Price
+    GROUP BY hb.BranchID, r.RoomID, sc.ServiceID
     ORDER BY hb.City, r.RoomNumber, TotalRevenue DESC;
 END //
 DELIMITER ;
